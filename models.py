@@ -10,13 +10,11 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    external_id = Column(Integer)
     username = Column(String)
     email = Column(String)
-    status = Column(String)
-    reg_date = Column(DateTime)
-    last_login = Column(DateTime)
-    characters = relationship("Character", back_populates="user")
+    status = Column(String, default='active')
+    create_date = Column(DateTime)
+    auth_sessions = relationship("AuthSession", back_populates="user")
 
 
 class AuthSession(Base):

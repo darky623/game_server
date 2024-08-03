@@ -1,5 +1,5 @@
 from aiohttp_middlewares import cors_middleware
-from routes import routes, engine
+from routes import routes, engine, create_test_server
 from models import Base
 from aiohttp import web
 import config
@@ -17,6 +17,7 @@ async def setup():
     app.middlewares.append(cors)
     app.add_routes(routes)
     app.on_cleanup.append(shutdown)
+
     return app
 
 
