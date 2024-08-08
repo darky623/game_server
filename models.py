@@ -1,5 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+import config
 
 
 class Base(DeclarativeBase):
@@ -16,6 +17,15 @@ class User(Base):
     create_date = Column(DateTime)
     auth_sessions = relationship("AuthSession", back_populates="user")
 
+    def serialize(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'status': self.status,
+            'create_date': self.create_date.strftime(config.dt_format)
+        }
+
 
 class AuthSession(Base):
     __tablename__ = "auth_sessions"
@@ -26,6 +36,15 @@ class AuthSession(Base):
     token = Column(String)
     status = Column(String, default='active')
     create_date = Column(DateTime)
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'token': self.token,
+            'status': self.status,
+            'create_date': self.create_date.strftime(config.dt_format)
+        }
 
 
 class Character(Base):
