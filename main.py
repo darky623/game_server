@@ -1,5 +1,5 @@
 from aiohttp_middlewares import cors_middleware
-from routes import routes, engine, create_test_server
+from routes import routes, engine
 from models import Base
 from aiohttp import web
 import config
