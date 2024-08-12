@@ -161,7 +161,7 @@ async def servers_handler(request):
                 response["message"] = "There is no archetype with such an id!"
                 return web.json_response(response)
 
-            character = Character(name=data['name'], archetype_id=int(data['archetype_id']))
+            character = Character(name=data['name'], character_type='main', archetype_id=int(data['archetype_id']))
             user.characters.append(character)
             db.commit()
             response["character_info"] = {"name": character.name,
