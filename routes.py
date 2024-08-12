@@ -90,11 +90,11 @@ async def servers_handler(request):
 
     user = await check_auth_token(data['token'])
     with Session(autoflush=False, bind=engine) as db:
-        user = db.merge(user)
         if not user:
             response["message"] = "Token is invalid!"
             return web.json_response(response)
 
+        user = db.merge(user)
         for archetype in db.query(CharacterArchetype).all():
             response['archetypes'].append(archetype.serialize())
 
@@ -115,10 +115,11 @@ async def servers_handler(request):
 
     user = await check_auth_token(data['token'])
     with Session(autoflush=False, bind=engine) as db:
-        user = db.merge(user)
         if not user:
             response["message"] = "Token is invalid!"
             return web.json_response(response)
+
+        user = db.merge(user)
 
         response["user_info"] = {"username": user.username,
                                  "email": user.email}
@@ -143,10 +144,11 @@ async def servers_handler(request):
 
     user = await check_auth_token(data['token'])
     with Session(autoflush=False, bind=engine) as db:
-        user = db.merge(user)
         if not user:
             response["message"] = "Token is invalid!"
             return web.json_response(response)
+
+        user = db.merge(user)
 
         for character in user.characters:
             if character.character_type == 'main':
