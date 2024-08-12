@@ -90,7 +90,7 @@ async def servers_handler(request):
 
     user = await check_auth_token(data['token'])
     with Session(autoflush=False, bind=engine) as db:
-        db.merge(user)
+        user = db.merge(user)
         if not user:
             response["message"] = "Token is invalid!"
             return web.json_response(response)
@@ -115,7 +115,7 @@ async def servers_handler(request):
 
     user = await check_auth_token(data['token'])
     with Session(autoflush=False, bind=engine) as db:
-        db.merge(user)
+        user = db.merge(user)
         if not user:
             response["message"] = "Token is invalid!"
             return web.json_response(response)
@@ -143,7 +143,7 @@ async def servers_handler(request):
 
     user = await check_auth_token(data['token'])
     with Session(autoflush=False, bind=engine) as db:
-        db.merge(user)
+        user = db.merge(user)
         if not user:
             response["message"] = "Token is invalid!"
             return web.json_response(response)
