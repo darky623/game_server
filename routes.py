@@ -89,15 +89,16 @@ async def servers_handler(request):
         return web.json_response(response)
 
     user = await check_auth_token(data['token'])
-    if not user:
-        response["message"] = "Token is invalid!"
-        return web.json_response(response)
-
     with Session(autoflush=False, bind=engine) as db:
+        db.merge(user)
+        if not user:
+            response["message"] = "Token is invalid!"
+            return web.json_response(response)
+
         for archetype in db.query(CharacterArchetype).all():
             response['archetypes'].append(archetype.serialize())
 
-    return web.json_response(response)
+        return web.json_response(response)
 
 
 @routes.get('/summary')
@@ -113,19 +114,21 @@ async def servers_handler(request):
         return web.json_response(response)
 
     user = await check_auth_token(data['token'])
-    if not user:
-        response["message"] = "Token is invalid!"
+    with Session(autoflush=False, bind=engine) as db:
+        db.merge(user)
+        if not user:
+            response["message"] = "Token is invalid!"
+            return web.json_response(response)
+
+        response["user_info"] = {"username": user.username,
+                                 "email": user.email}
+
+        for character in user.characters:
+            if character.character_type == 'main':
+                response["character_info"] = {"name": character.name,
+                                              "archetype": character.archetype_id}
+
         return web.json_response(response)
-
-    response["user_info"] = {"username": user.username,
-                             "email": user.email}
-
-    for character in user.characters:
-        if character.character_type == 'main':
-            response["character_info"] = {"name": character.name,
-                                          "archetype": character.archetype_id}
-
-    return web.json_response(response)
 
 
 @routes.post('/create_character')
@@ -139,18 +142,19 @@ async def servers_handler(request):
         return web.json_response(response)
 
     user = await check_auth_token(data['token'])
-    if not user:
-        response["message"] = "Token is invalid!"
-        return web.json_response(response)
+    with Session(autoflush=False, bind=engine) as db:
+        db.merge(user)
+        if not user:
+            response["message"] = "Token is invalid!"
+            return web.json_response(response)
 
-    for character in user.characters:
-        if character.character_type == 'main':
-            response["message"] = "The main character has already been created!"
-            response["character_info"] = {"name": character.name,
-                                          "archetype": character.archetype_id}
+        for character in user.characters:
+            if character.character_type == 'main':
+                response["message"] = "The main character has already been created!"
+                response["character_info"] = {"name": character.name,
+                                              "archetype": character.archetype_id}
 
-    if not response["character_info"]:
-        with Session(autoflush=False, bind=engine) as db:
+        if not response["character_info"]:
             if not db.query(CharacterArchetype).filter(CharacterArchetype.id == int(data['archetype_id'])).first():
                 response["message"] = "There is no archetype with such an id!"
                 return web.json_response(response)
@@ -161,4 +165,4 @@ async def servers_handler(request):
             response["character_info"] = {"name": character.name,
                                           "archetype": character.archetype_id}
 
-    return web.json_response(response)
+        return web.json_response(response)
