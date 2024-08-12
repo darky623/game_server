@@ -1,5 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase, relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
 import config
 
 
@@ -16,6 +16,7 @@ class User(Base):
     status = Column(String, default='active')
     create_date = Column(DateTime)
     auth_sessions = relationship("AuthSession", back_populates="user")
+    characters = relationship("Character", back_populates="user")
 
     def serialize(self):
         return {
@@ -34,7 +35,7 @@ class AuthSession(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="auth_sessions")
     token = Column(String)
-    status = Column(String, default='active')
+    status = Column(String, default="active")
     create_date = Column(DateTime)
 
     def serialize(self):
@@ -54,5 +55,40 @@ class Character(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="characters")
     name = Column(String)
-    race = Column(String)
-    status = Column(String)
+    character_type = Column(String)
+    archetype_id = Column(Integer, ForeignKey("character_archetypes.id"))
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'name': self.name,
+            'archetype_id': self.archetype_id,
+        }
+
+
+class CharacterArchetype(Base):
+    __tablename__ = "character_archetypes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+
+    damage = Column(Float, default=0)
+    vitality = Column(Float, default=0)
+    strength = Column(Float, default=0)
+    agility = Column(Float, default=0)
+    intelligence = Column(Float, default=0)
+    speed = Column(Float, default=0)
+    physical_resistance = Column(Float, default=0)
+    magical_resistance = Column(Float, default=0)
+    critical_hit_chance = Column(Float, default=0)
+    evasion = Column(Float, default=0)
+    true_damage = Column(Float, default=0)
+    accuracy = Column(Float, default=0)
+    spirit = Column(Float, default=0)
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+        }

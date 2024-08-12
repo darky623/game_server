@@ -1,5 +1,5 @@
 from aiohttp_middlewares import cors_middleware
-from routes import routes, engine
+from routes import routes, engine, create_archetypes
 from models import Base
 from aiohttp import web
 import config
@@ -8,6 +8,7 @@ import ssl
 
 async def setup():
     print('Запуск...')
+    create_archetypes()
     app = web.Application()
     cors = cors_middleware(
         allow_all=True,

@@ -9,3 +9,7 @@ token_lifetime = 3600
 webhook_port = 80
 webhook_ssl_cert = None
 webhook_ssl_priv = None
+
+archetypes = [{"title": "Strength", "chars": []},
+              {"title": "Dexterity", "chars": []},
+              {"title": "Intelligence", "chars": []}]
