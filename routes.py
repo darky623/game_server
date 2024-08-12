@@ -55,6 +55,7 @@ async def check_remote_auth_token(token: str):
         async with session.get(f'{config.auth_server}/check_token', data=request.encode('utf-8')) as resp:
             byte_str = await resp.text()
             data, message = validate_form_data(byte_str.encode(), ['message', 'user', 'auth'])
+            print(data)
             if not data:
                 return None
 
@@ -76,8 +77,7 @@ async def check_remote_auth_token(token: str):
 
                     user.auth_sessions.append(auth_session)
                     db.commit()
-
-    return user
+                    return user
 
 
 @routes.get('/archetypes')
