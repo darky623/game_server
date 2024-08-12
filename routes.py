@@ -50,9 +50,9 @@ async def check_auth_token(token: str):
 
 
 async def check_remote_auth_token(token: str):
-    request = str({"token": token})
+    request = str([{"token": token}])
     async with ClientSession() as session:
-        async with session.get(f'{config.auth_server}/token', data=str({"token": token})) as resp:
+        async with session.get(f'{config.auth_server}/token', json={"token": token}) as resp:
             byte_str = await resp.text()
             print(byte_str)
             data, message = validate_form_data(byte_str.encode(), ['message', 'user', 'auth'])
