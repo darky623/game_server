@@ -90,7 +90,7 @@ async def servers_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    user, token_data = check_auth_token(data['token'])
+    user, token_data = await check_auth_token(data['token'])
     if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
@@ -114,7 +114,7 @@ async def servers_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    user, token_data = check_auth_token(data['token'])
+    user, token_data = await check_auth_token(data['token'])
     if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
@@ -140,7 +140,7 @@ async def servers_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    user, token_data = check_auth_token(data['token'])
+    user, token_data = await check_auth_token(data['token'])
     if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
