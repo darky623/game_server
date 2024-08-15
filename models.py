@@ -73,6 +73,41 @@ class CharacterArchetype(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
 
+    multiplier_params = Column(Integer, ForeignKey("multiplier_params.id"))
+    summand_params = Column(Integer, ForeignKey("summand_params.id"))
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+        }
+
+
+class MultiplierParams(Base):
+    __tablename__ = "multiplier_params"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    damage = Column(Float, default=1)
+    vitality = Column(Float, default=1)
+    strength = Column(Float, default=1)
+    agility = Column(Float, default=1)
+    intelligence = Column(Float, default=1)
+    speed = Column(Float, default=1)
+    physical_resistance = Column(Float, default=1)
+    magical_resistance = Column(Float, default=1)
+    critical_hit_chance = Column(Float, default=1)
+    evasion = Column(Float, default=1)
+    true_damage = Column(Float, default=1)
+    accuracy = Column(Float, default=1)
+    spirit = Column(Float, default=1)
+
+
+class SummandParams(Base):
+    __tablename__ = "summand_params"
+
+    id = Column(Integer, primary_key=True, index=True)
+
     damage = Column(Float, default=0)
     vitality = Column(Float, default=0)
     strength = Column(Float, default=0)
@@ -86,9 +121,3 @@ class CharacterArchetype(Base):
     true_damage = Column(Float, default=0)
     accuracy = Column(Float, default=0)
     spirit = Column(Float, default=0)
-
-    def serialize(self):
-        return {
-            'id': self.id,
-            'title': self.title,
-        }
