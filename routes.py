@@ -50,8 +50,9 @@ async def check_auth_token(token: str):
 
 
 async def check_remote_auth_token(token: str):
+    headers = {'Authorization': f'Bearer {token}'}
     async with ClientSession() as session:
-        async with session.get(f'{config.auth_server}/token', json={"token": token}) as resp:
+        async with session.get(f'{config.auth_server}/token', headers=headers) as resp:
             byte_str = await resp.text()
             data, message = validate_form_data(byte_str.encode(), ['message', 'user', 'auth'])
             if not data:
