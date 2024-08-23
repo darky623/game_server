@@ -49,6 +49,16 @@ async def check_auth_token(token: str):
     return user
 
 
+def get_token(request):
+    auth_header = request.headers.get('Authorization')
+
+    if auth_header is None or not auth_header.startswith('Bearer '):
+        raise Exception('Token is invalid')
+
+    token = auth_header[len('Bearer '):]
+    return token
+
+
 async def check_remote_auth_token(token: str):
     headers = {'Authorization': f'Bearer {token}'}
     async with ClientSession() as session:
@@ -81,15 +91,17 @@ async def check_remote_auth_token(token: str):
 
 @routes.get('/archetypes')
 async def servers_handler(request):
-    byte_str = await request.read()
-    response = {"message": "List of available archetypes",
-                "archetypes": []}
-    data, message = validate_form_data(byte_str, ['token'])
-    if not data:
-        response["message"] = message
+    response = {
+        "message": "List of available archetypes",
+        "archetypes": []
+    }
+    try:
+        token = get_token(request)
+    except Exception as e:
+        response["message"] = str(e)
         return web.json_response(response)
 
-    user = await check_auth_token(data['token'])
+    user = await check_auth_token(token)
     with Session(autoflush=False, bind=engine) as db:
         if not user:
             response["message"] = "Token is invalid!"
@@ -104,17 +116,17 @@ async def servers_handler(request):
 
 @routes.get('/summary')
 async def servers_handler(request):
-    byte_str = await request.read()
     response = {"message": "General summary",
                 "server_info": None,
                 "user_info": None,
                 "character_info": None}
-    data, message = validate_form_data(byte_str, ['token'])
-    if not data:
-        response["message"] = message
+    try:
+        token = get_token(request)
+    except Exception as e:
+        response["message"] = str(e)
         return web.json_response(response)
 
-    user = await check_auth_token(data['token'])
+    user = await check_auth_token(token)
     with Session(autoflush=False, bind=engine) as db:
         if not user:
             response["message"] = "Token is invalid!"
@@ -135,15 +147,22 @@ async def servers_handler(request):
 
 @routes.post('/create_character')
 async def servers_handler(request):
+    response = {
+        "message": "The main character has been successfully created!",
+        "character_info": None
+    }
+    try:
+        token = get_token(request)
+    except Exception as e:
+        response["message"] = str(e)
+        return web.json_response(response)
     byte_str = await request.read()
-    response = {"message": "The main character has been successfully created!",
-                "character_info": None}
-    data, message = validate_form_data(byte_str, ['token', 'name', 'archetype_id'])
+    data, message = validate_form_data(byte_str, ['name', 'archetype_id'])
     if not data:
         response["message"] = message
         return web.json_response(response)
 
-    user = await check_auth_token(data['token'])
+    user = await check_auth_token(token)
     with Session(autoflush=False, bind=engine) as db:
         if not user:
             response["message"] = "Token is invalid!"

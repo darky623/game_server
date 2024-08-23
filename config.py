@@ -1,5 +1,5 @@
 sqlite_database = "sqlite:///data.db"
-auth_server = "http://31.129.54.119:80"
+auth_server = "http://31.129.54.119"
 
 secret_key = "secret_key"
 
