@@ -1,9 +1,22 @@
 from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table
 from sqlalchemy.orm import relationship, DeclarativeBase
+from database import Base
 
 
-class Base(DeclarativeBase):
-    pass
+character_items = Table(
+    'character_items',
+    Base.metadata,
+    Column('character_id', Integer, ForeignKey('characters.id'), primary_key=True),
+    Column('item_id', Integer, ForeignKey('items.id'), primary_key=True)
+)
+
+
+character_abilities = Table(
+    'character_abilities',
+    Base.metadata,
+    Column('character_id', Integer, ForeignKey('characters.id'), primary_key=True),
+    Column('ability_id', Integer, ForeignKey('abilities.id'), primary_key=True)
+)
 
 
 class Character(Base):
@@ -15,21 +28,22 @@ class Character(Base):
     name = Column(String)
 
     character_type_id = Column(Integer, ForeignKey('character_types.id'))
-    character_type = relationship("CharacterType")
+    character_type = relationship("CharacterType", backref='characters')
 
     archetype_id = Column(Integer, ForeignKey("character_archetypes.id"))
-    archetype = relationship("CharacterArchetype")
+    archetype = relationship("CharacterArchetype", backref='characters')
 
     race_id = Column(Integer, ForeignKey('races.id'))
-    race = relationship("Race")
+    race = relationship("Race", backref='characters')
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
-    summand_params = relationship("SummandParams")
+    summand_params = relationship("SummandParams", backref='characters')
 
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
-    multiplier_params = relationship("MultiplierParams")
+    multiplier_params = relationship("MultiplierParams", backref='characters')
 
-    items = relationship('Item', back_populates='character')
+    items = relationship('Item', secondary=character_items, backref='characters')
+    abilities = relationship('Ability', secondary=character_abilities, backref='characters')
 
     avatar = Column(String)
     stardom = Column(Integer)
@@ -129,19 +143,10 @@ class Item(Base):
     multiplier_params = relationship("MultiplierParams")
 
 
-character_items = Table(
-    'character_items',
-    Base.metadata,
-    Column('character_id', Integer, ForeignKey('characters.id'), primary_key=True),
-    Column('item_id', Integer, ForeignKey('items.id'), primary_key=True)
-)
-
-
 class ItemTier(Base):
     __tablename__ = 'item_tiers'
 
     id = Column(Integer, primary_key=True, index=True)
-
     name = Column(String)
 
 
@@ -167,7 +172,7 @@ class Ability(Base):
     name = Column(String)
     icon = Column(String)
 
-    ability_tier_id = Column(Integer, ForeignKey('skill_tiers.id'))
+    ability_tier_id = Column(Integer, ForeignKey('ability_tiers.id'))
     ability_tier = relationship('AbilityTier')
 
     ability_type_id = Column(Integer, ForeignKey('ability_types.id'))
@@ -180,7 +185,8 @@ class Ability(Base):
     multiplier_params = relationship("MultiplierParams")
 
     chance = Column(Float)
-    summoned_character_id = Column(Integer, ForeignKey('character.id'), nullable=True)
+    summoned_character_id = Column(Integer, ForeignKey('characters.id'), nullable=True)
+    summoned_character = relationship('Character')
     summoned_quantity = Column(Integer, default=0)
 
     damage = Column(Integer, default=0)

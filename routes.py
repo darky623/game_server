@@ -1,14 +1,13 @@
-from models import User, AuthSession, Character, CharacterArchetype
+from models import User, AuthSession
+from game_logic.models import Character, CharacterArchetype
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from aiohttp import web, ClientSession
+from database import engine
 import config
 import json
 
 routes = web.RouteTableDef()
-engine = create_engine(config.sqlite_database, echo=True)
-
 
 def create_archetypes():
     archetypes = []

@@ -1,6 +1,7 @@
 from aiohttp_middlewares import cors_middleware
 from routes import routes, engine, create_archetypes
 from models import Base
+from game_logic import *
 from aiohttp import web
 import config
 import ssl

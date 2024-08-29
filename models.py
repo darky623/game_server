@@ -1,10 +1,7 @@
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
 import config
-
-
-class Base(DeclarativeBase):
-    pass
+from database import Base
 
 
 class User(Base):

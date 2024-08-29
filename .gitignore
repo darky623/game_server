@@ -3,3 +3,4 @@
 .idea
 __pycache__
 data.db
+game_logic/test.json
