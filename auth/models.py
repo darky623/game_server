@@ -1,7 +1,9 @@
-from sqlalchemy.orm import DeclarativeBase, relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
+from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 import config
 from database import Base
+from chat.models import users_chats
+from game_logic.models import Character
 
 
 class User(Base):
@@ -12,8 +14,9 @@ class User(Base):
     email = Column(String)
     status = Column(String, default='active')
     create_date = Column(DateTime)
-    auth_sessions = relationship("AuthSession", back_populates="user")
-    characters = relationship("Character", back_populates="user")
+    auth_sessions = relationship("AuthSession", back_populates="user", lazy='selectin')
+    characters = relationship("Character", backref="user", lazy='selectin')
+    chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='selectin')
 
     def serialize(self):
         return {
@@ -30,7 +33,7 @@ class AuthSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="auth_sessions")
+    user = relationship("User", back_populates="auth_sessions", lazy='selectin')
     token = Column(String)
     status = Column(String, default="active")
     create_date = Column(DateTime)

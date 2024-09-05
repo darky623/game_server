@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table
-from sqlalchemy.orm import relationship, DeclarativeBase
+from sqlalchemy.orm import relationship
 from database import Base
 
 
@@ -24,7 +24,7 @@ class Character(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="characters")
+    # user = relationship("User", backref="characters")
     name = Column(String)
 
     character_type_id = Column(Integer, ForeignKey('character_types.id'))
@@ -45,9 +45,24 @@ class Character(Base):
     items = relationship('Item', secondary=character_items, backref='characters')
     abilities = relationship('Ability', secondary=character_abilities, backref='characters')
 
+    fragments = Column(Integer)
     avatar = Column(String)
     stardom = Column(Integer)
     level = Column(Integer)
+
+    def __init__(self):
+        self.base_params = None
+
+    def calculate_base_params(self):
+        result = self.summand_params * (self.multiplier_params * self.level)
+        result += self.archetype.summand_params + self.race.summand_params
+        result *= self.archetype.multiplier_params * self.race.multiplier_params
+        result += sum([item.summand_params for item in self.items])
+        for item in self.items:
+            result *= item.multiplier_params
+            
+        self.base_params = result
+        return self.base_params
 
     def serialize(self):
         return {
@@ -103,6 +118,57 @@ class MultiplierParams(Base):
     accuracy = Column(Float, default=1)
     spirit = Column(Float, default=1)
 
+    def __mul__(self, other):
+        if isinstance(other, (int, float)):
+            return MultiplierParams(
+                damage=self.damage * other,
+                vitality=self.vitality * other,
+                strength=self.strength * other,
+                agility=self.agility * other,
+                intelligence=self.intelligence * other,
+                speed=self.speed * other,
+                physical_resistance=self.physical_resistance * other,
+                magical_resistance=self.magical_resistance * other,
+                critical_hit_chance=self.critical_hit_chance * other,
+                evasion=self.evasion * other,
+                true_damage=self.true_damage * other,
+                accuracy=self.accuracy * other,
+                spirit=self.spirit * other
+            )
+        elif isinstance(other, MultiplierParams):
+            return MultiplierParams(
+                damage=self.damage * other.damage,
+                vitality=self.vitality * other.vitality,
+                strength=self.strength * other.strength,
+                agility=self.agility * other.agility,
+                intelligence=self.intelligence * other.intelligence,
+                speed=self.speed * other.speed,
+                physical_resistance=self.physical_resistance * other.physical_resistance,
+                magical_resistance=self.magical_resistance * other.magical_resistance,
+                critical_hit_chance=self.critical_hit_chance * other.critical_hit_chance,
+                evasion=self.evasion * other.evasion,
+                true_damage=self.true_damage * other.true_damage,
+                accuracy=self.accuracy * other.accuracy,
+                spirit=self.spirit * other.spirit
+            )
+        elif isinstance(other, SummandParams):
+            return SummandParams(
+                damage=self.damage * other.damage,
+                vitality=self.vitality * other.vitality,
+                strength=self.strength * other.strength,
+                agility=self.agility * other.agility,
+                intelligence=self.intelligence * other.intelligence,
+                speed=self.speed * other.speed,
+                physical_resistance=self.physical_resistance * other.physical_resistance,
+                magical_resistance=self.magical_resistance * other.magical_resistance,
+                critical_hit_chance=self.critical_hit_chance * other.critical_hit_chance,
+                evasion=self.evasion * other.evasion,
+                true_damage=self.true_damage * other.true_damage,
+                accuracy=self.accuracy * other.accuracy,
+                spirit=self.spirit * other.spirit
+            )
+        return NotImplemented
+
 
 class SummandParams(Base):
     __tablename__ = "summand_params"
@@ -122,6 +188,44 @@ class SummandParams(Base):
     true_damage = Column(Float, default=0)
     accuracy = Column(Float, default=0)
     spirit = Column(Float, default=0)
+
+    def __add__(self, other):
+        if isinstance(other, SummandParams):
+            return SummandParams(
+                damage=self.damage + other.damage,
+                vitality=self.vitality + other.vitality,
+                strength=self.strength + other.strength,
+                agility=self.agility + other.agility,
+                intelligence=self.intelligence + other.intelligence,
+                speed=self.speed + other.speed,
+                physical_resistance=self.physical_resistance + other.physical_resistance,
+                magical_resistance=self.magical_resistance + other.magical_resistance,
+                critical_hit_chance=self.critical_hit_chance + other.critical_hit_chance,
+                evasion=self.evasion + other.evasion,
+                true_damage=self.true_damage + other.true_damage,
+                accuracy=self.accuracy + other.accuracy,
+                spirit=self.spirit + other.spirit
+            )
+        return NotImplemented
+
+    def __mul__(self, other):
+        if isinstance(other, (int, float)):
+            return SummandParams(
+                damage=self.damage * other,
+                vitality=self.vitality * other,
+                strength=self.strength * other,
+                agility=self.agility * other,
+                intelligence=self.intelligence * other,
+                speed=self.speed * other,
+                physical_resistance=self.physical_resistance * other,
+                magical_resistance=self.magical_resistance * other,
+                critical_hit_chance=self.critical_hit_chance * other,
+                evasion=self.evasion * other,
+                true_damage=self.true_damage * other,
+                accuracy=self.accuracy * other,
+                spirit=self.spirit * other
+            )
+        return NotImplemented
 
 
 class Item(Base):
@@ -178,10 +282,10 @@ class Ability(Base):
     ability_type_id = Column(Integer, ForeignKey('ability_types.id'))
     ability_type = relationship('AbilityType')
 
-    summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
+    summand_params_id = Column(Integer, ForeignKey('summand_params.id'), nullable=True)
     summand_params = relationship("SummandParams")
 
-    multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
+    multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'), nullable=True)
     multiplier_params = relationship("MultiplierParams")
 
     chance = Column(Float)
