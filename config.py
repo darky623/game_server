@@ -1,4 +1,4 @@
-db_url = "postgresql+asyncpg://postgres:123@postgres:5432/game_server"
+db_url = "postgresql+asyncpg://postgres:postgres123@postgres:5432/game_server"
 auth_server = "http://31.129.54.119"
 
 secret_key = "secret_key"
