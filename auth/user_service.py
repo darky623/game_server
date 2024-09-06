@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 
 from aiohttp import ClientSession
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from starlette import status
 
@@ -25,6 +25,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     if not user:
         raise credentials_exception
     return user
+
+
+async def websocket_authentication(websocket: WebSocket) -> User:
+    token = websocket.headers.get('Authorization')
+    if token and token.startswith("Bearer "):
+        token = token[len("Bearer "):]
+        user = await get_current_user(token)
+        return user
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token missing or invalid",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 async def check_auth_token(token: str):

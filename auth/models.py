@@ -1,6 +1,6 @@
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
-import config
+import config as settings
 from database import Base
 from chat.models import users_chats
 from game_logic.models import Character
@@ -24,7 +24,7 @@ class User(Base):
             'username': self.username,
             'email': self.email,
             'status': self.status,
-            'create_date': self.create_date.strftime(config.dt_format)
+            'create_date': self.create_date.strftime(settings.dt_format)
         }
 
 
@@ -44,5 +44,5 @@ class AuthSession(Base):
             'user_id': self.user_id,
             'token': self.token,
             'status': self.status,
-            'create_date': self.create_date.strftime(config.dt_format)
+            'create_date': self.create_date.strftime(settings.dt_format)
         }
