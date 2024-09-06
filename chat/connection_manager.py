@@ -6,8 +6,7 @@ class ChatConnectionManager:
         self.chat_websocket_lists: dict[int, list[WebSocket]] = {}
 
     async def connect_to_chat(self, chat_id: int, websocket: WebSocket):
-        if not websocket.client_state.CONNECTED:
-            await websocket.accept()
+        await websocket.accept()
         self.chat_websocket_lists.setdefault(chat_id, []).append(websocket)
 
     async def disconnect(self, chat_id, websocket: WebSocket):

@@ -56,6 +56,8 @@ class ChatService:
 
     async def check_chat_member(self, chat_id: int, user: User) -> bool:
         chat = await self.get_chat(chat_id)
+        if not chat:
+            return False
         if chat.type == 'general':
             return True
         for chat_user in chat.users:
@@ -63,3 +65,8 @@ class ChatService:
                 return True
         return False
 
+    async def get_general_chat(self) -> Chat:
+        async with self.session_factory() as session:
+            result = await session.execute(select(Chat).where(Chat.type == 'general'))
+            chat = result.scalars().first()
+            return chat

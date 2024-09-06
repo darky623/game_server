@@ -1,7 +1,7 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 
 from auth.models import User
-from auth.user_service import get_current_user
+from auth.user_service import websocket_authentication
 from chat.router import chat_service
 from datetime import datetime
 
@@ -13,18 +13,11 @@ manager = ChatConnectionManager()
 
 
 @router.websocket('/{chat_id}')
-async def chat_websocket(
-    websocket: WebSocket,
-    chat_id: int,
+async def chat_websocket(websocket: WebSocket,
+                         chat_id: int,
+                         user: User = Depends(websocket_authentication)
 ):
-    await websocket.accept()
-    await websocket.send_json({'text': 'Send your token'})
     try:
-        token_data = await websocket.receive_json()
-        token = token_data.get('token')
-
-        user: User = await get_current_user(token)
-
         if not user:
             await websocket.send_json(str({
                 'error': 'Token is invalid'
@@ -42,15 +35,6 @@ async def chat_websocket(
         await manager.send_personal_json({
             'text': 'You are successfully connected to chat!'
         }, websocket)
-
-        last_messages = await chat_service.get_last_messages(chat_id)
-        for message in last_messages:
-            await manager.send_personal_json({
-                'username': message.user.username,
-                'user_id': message.user_id,
-                'timestamp': message.timestamp.isoformat(),
-                'text': message.text
-            }, websocket)
 
         while True:
             data = await websocket.receive_json()

@@ -32,3 +32,11 @@ class Message(Base):
     timestamp = Column(DateTime)
     chat_id = Column(Integer, ForeignKey('chats.id'))
     chat = relationship('Chat', back_populates='messages', lazy='selectin')
+
+    def serialize(self):
+        return {
+            'text': self.text,
+            'timestamp': self.timestamp,
+            'username': self.user.username,
+            'user_id': self.user.id
+        }

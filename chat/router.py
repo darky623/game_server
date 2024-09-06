@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from chat.schemas import AddChatSchema, ChatSchema
 from auth.models import User
 from auth.user_service import get_current_user
 from chat.chat_service import ChatService
 from database import AsyncSessionFactory
+from typing import Optional
 
 router = APIRouter(prefix='/chat')
 chat_service = ChatService(AsyncSessionFactory)
@@ -16,3 +17,32 @@ async def create_chat(add_chat: AddChatSchema = Depends,
     return chat
 
 
+@router.get('/{chat_id}/messages')
+async def get_last_messages(chat_id: int,
+                            quantity: Optional[int] = 15,
+                            user: User = Depends(get_current_user)):
+    if await chat_service.check_chat_member(chat_id, user.id):
+        messages = await chat_service.get_last_messages(chat_id, quantity)
+        response = [message.serialize() for message in messages]
+        return response
+    raise HTTPException(400, 'You are not allowed to get messages from this chat')
+
+
+@router.get('')
+async def get_all_allowed_chats(user: User = Depends(get_current_user)):
+    general_chat = await chat_service.get_general_chat()
+    result = [general_chat.id]
+    for chat in user.chats:
+        result.append(chat.id)
+    return {
+        'allowed_chat_ids': set(result)
+    }
+
+
+# @router.get('/{chat_id}')
+# async def get_chat_info(chat_id: int,
+#                         user: User = Depends(get_current_user)):
+#     if not await chat_service.check_chat_member(chat_id, user):
+#         raise HTTPException(403, detail='You are not allowed to see this chat info')
+#     chat = await chat_service.get_chat(chat_id)
+#     return chat
