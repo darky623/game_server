@@ -26,4 +26,4 @@ services:
       - postgres
 
 volumes:
-  mongo-data:
+    pg_data:
