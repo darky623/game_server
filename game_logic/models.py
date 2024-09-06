@@ -28,10 +28,10 @@ class Character(Base):
     name = Column(String)
 
     character_type_id = Column(Integer, ForeignKey('character_types.id'))
-    character_type = relationship("CharacterType", backref='characters')
+    character_type = relationship("CharacterType", backref='characters', lazy='selectin')
 
     archetype_id = Column(Integer, ForeignKey("character_archetypes.id"))
-    archetype = relationship("CharacterArchetype", backref='characters')
+    archetype = relationship("CharacterArchetype", backref='characters', lazy='selectin')
 
     race_id = Column(Integer, ForeignKey('races.id'))
     race = relationship("Race", backref='characters')
@@ -50,8 +50,7 @@ class Character(Base):
     stardom = Column(Integer)
     level = Column(Integer)
 
-    def __init__(self):
-        self.base_params = None
+    base_params = None
 
     def calculate_base_params(self):
         result = self.summand_params * (self.multiplier_params * self.level)
