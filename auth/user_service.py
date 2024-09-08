@@ -89,7 +89,8 @@ async def check_remote_auth_token(token: str):
                     auth_session = AuthSession(token=data['auth']['token'],
                                                create_date=datetime.strptime(data['auth']['create_date'],
                                                                              config.dt_format))
-                    user = db.query(User).filter(User.username == str(data['user']['username'])).first()
+                    result = await db.execute(select(User).where(User.username == str(str(data['user']['username']))))
+                    user = result.scalars().first()
                     if not user:
                         user = User(username=data['user']['username'],
                                     email=data['user']['email'],
