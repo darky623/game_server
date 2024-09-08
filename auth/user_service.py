@@ -96,8 +96,8 @@ async def check_remote_auth_token(token: str):
                                     email=data['user']['email'],
                                     create_date=datetime.strptime(data['user']['create_date'],
                                                                   config.dt_format))
-                        db.add(user)
+                        await db.add(user)
 
                     user.auth_sessions.append(auth_session)
-                    db.commit()
+                    await db.commit()
                     return user
