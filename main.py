@@ -27,7 +27,7 @@ app.add_middleware(
 
 
 @app.get('/archetypes')
-async def servers_handler(user: User = Depends(get_current_user)):
+async def get_archetypes(user: User = Depends(get_current_user)):
     response = {
         "message": "List of available archetypes",
         "archetypes": []
@@ -42,7 +42,7 @@ async def servers_handler(user: User = Depends(get_current_user)):
 
 
 @app.get('/summary')
-async def servers_handler(user: User = Depends(get_current_user)):
+async def get_summary(user: User = Depends(get_current_user)):
     response = {"message": "General summary",
                 "server_info": None,
                 "user_info": None,
@@ -63,7 +63,7 @@ async def servers_handler(user: User = Depends(get_current_user)):
 
 
 @app.post('/create_character')
-async def servers_handler(create_character: CreateCharacterSchema,
+async def create_character(create_character: CreateCharacterSchema,
                           user: User = Depends(get_current_user)):
     response = {
         "message": "The main character has been successfully created!",
