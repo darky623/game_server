@@ -51,7 +51,7 @@ async def check_auth_token(token: str):
                 user = auth.user
             else:
                 auth.status = 'expired'
-                db.commit()
+                await db.commit()
         else:
             user = await check_remote_auth_token(token)
 
@@ -89,7 +89,7 @@ async def check_remote_auth_token(token: str):
                     auth_session = AuthSession(token=data['auth']['token'],
                                                create_date=datetime.strptime(data['auth']['create_date'],
                                                                              config.dt_format))
-                    result = await db.execute(select(User).where(User.username == str(str(data['user']['username']))))
+                    result = await db.execute(select(User).where(User.username == str(data['user']['username'])))
                     user = result.scalars().first()
                     if not user:
                         user = User(username=data['user']['username'],
