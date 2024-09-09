@@ -1,12 +1,21 @@
-db_url = "postgresql+asyncpg://postgres:postgres123@postgres:5432/game_server"
-auth_server = "http://31.129.54.119"
+import os
 
-secret_key = "secret_key"
+from dotenv import load_dotenv
+load_dotenv()
+
+if os.getenv("DOCKER_DB_URL"):
+    db_url = os.getenv('DOCKER_DB_URL')
+else:
+    db_url = os.getenv('DB_URL')
+
+auth_server = os.getenv('AUTH_SERVER')
+
+secret_key = os.environ.get('SECRET_KEY')
 
 dt_format = '%d/%m/%Y %H:%M:%S'
 token_lifetime = 3600
 
-webhook_port = 8000
+webhook_port = os.environ.get('WEBHOOK_PORT')
 webhook_ssl_cert = None
 webhook_ssl_priv = None
 
