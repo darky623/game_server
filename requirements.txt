@@ -4,5 +4,8 @@ pydantic~=2.8.2
 fastapi~=0.112.2
 starlette~=0.38.4
 alembic~=1.13.2
+black~=24.8.0
+
 asyncpg
 uvicorn[standard]
+python-dotenv~=1.0.1
