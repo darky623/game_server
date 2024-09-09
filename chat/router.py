@@ -33,7 +33,8 @@ async def get_all_allowed_chats(user: User = Depends(get_current_user)):
     general_chat = await chat_service.get_general_chat()
     result = [general_chat.id]
     for chat in user.chats:
-        result.append(chat.id)
+        if chat:
+            result.append(chat.id)
     return {
         'allowed_chat_ids': set(result)
     }
