@@ -31,7 +31,8 @@ services:
     ports:
       - "80:8000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
 volumes:
     pg_data:
