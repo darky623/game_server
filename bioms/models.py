@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text
+from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, LargeBinary
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -65,12 +65,14 @@ class BiomeLevel(Base):
 class PlayerProgress(Base):
     __tablename__ = "player_progress"
     id = Column(Integer, primary_key=True, index=True)
+    player = Column(Integer, ForeignKey("users.id"))
 
     biome_id = Column(Integer, ForeignKey("biomes.id"))
     biome = relationship("Biome", back_populates="player_progress")
 
     biome_level_id = Column(Integer, ForeignKey("biome_levels.id"))
     biome_level = relationship("BiomeLevel", back_populates="player_progress")
+    difficult_lvl = Column(Integer, default=1)
 
     battles = Column(Integer, default=0)
     victories = Column(Integer, default=0)
@@ -88,6 +90,7 @@ class PlayerProgress(Base):
 class Reward(Base):
     __tablename__ = "rewards"
     id = Column(Integer, primary_key=True)
+    icon = Column(LargeBinary)
     content = Column(Text)
     reward_type = Column(String(25))
     quantity = Column(Integer)
