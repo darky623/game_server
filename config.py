@@ -1,4 +1,11 @@
-db_url = "postgresql+asyncpg://postgres:postgres123@postgres:5432/game_server"
+import os
+
+PG_URL = os.getenv('PG_URL')
+PG_USERNAME = os.getenv('PG_USERNAME')
+PG_PASSWORD = os.getenv('PG_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
+
+db_url = f'postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}'
 auth_server = "http://31.129.54.119"
 
 secret_key = "secret_key"

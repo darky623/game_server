@@ -2,12 +2,12 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:14
+    image: postgres:15
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-      POSTGRES_DB: game_server
+      POSTGRES_USER: ${PG_USERNAME}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
@@ -18,8 +18,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: backend
-    environment:
-      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
     ports:
       - "80:8000"
     depends_on:
