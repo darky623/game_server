@@ -18,7 +18,7 @@ class BiomeSchema(BiomeBase):
     reward_id: Optional[int]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class PlayerProgressBase(BaseModel):
@@ -40,4 +40,4 @@ class PlayerProgressSchema(PlayerProgressBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
