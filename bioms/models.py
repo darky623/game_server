@@ -25,7 +25,7 @@ class Biome(Base):
 
     boss_abilities = relationship("Ability", secondary=boss_abilities, backref="biomes")
 
-    levels = relationship("BiomeLevel", back_populates="biomes")
+    biome_levels = relationship("BiomeLevel", back_populates="biome")
     player_progress = relationship("PlayerProgress", back_populates="biomes")
 
     def serialize(self):
@@ -45,7 +45,7 @@ class BiomeLevel(Base):
     number_of_lvl = Column(Integer, default=1)
 
     biome_id = Column(Integer, ForeignKey("biomes.id"), nullable=True)
-    biome = relationship("Biome", backref="biome_levels")
+    biome = relationship("Biome", back_populates="biome_levels")
 
     boss_id = Column(Integer, ForeignKey("bosses.id"))
     boss = relationship("Boss", backref="biome_levels")
