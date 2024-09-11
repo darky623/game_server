@@ -1,19 +1,21 @@
 import os
 
-PG_URL = os.getenv('PG_URL')
-PG_USERNAME = os.getenv('POSTGRES_USER')
-PG_PASSWORD = os.getenv('POSTGRES_PASSWORD')
-DB_NAME = os.getenv('POSTGRES_DB')
+from dotenv import load_dotenv
+load_dotenv()
 
-db_url = f'postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}'
-auth_server = "http://31.129.54.119"
+if os.getenv("DOCKER_DB_URL"):
+    db_url = os.getenv('DOCKER_DB_URL')
+else:
+    db_url = os.getenv('DB_URL')
 
-secret_key = "secret_key"
+auth_server = os.getenv('AUTH_SERVER')
+
+secret_key = os.environ.get('SECRET_KEY')
 
 dt_format = '%d/%m/%Y %H:%M:%S'
 token_lifetime = 3600
 
-webhook_port = 8000
+webhook_port = os.environ.get('WEBHOOK_PORT')
 webhook_ssl_cert = None
 webhook_ssl_priv = None
 
