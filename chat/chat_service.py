@@ -30,7 +30,7 @@ class ChatService:
 
     async def get_last_messages(self, chat_id: int, quantity: int = 15) -> list[Message]:
         async with self.session_factory() as session:
-            stmt = select(Message).where(Message.chat_id == chat_id).order_by(Message.timestamp.asc()).limit(quantity)
+            stmt = select(Message).where(Message.chat_id == chat_id).order_by(Message.timestamp.desc()).limit(quantity)
             result = await session.execute(stmt)
             messages = result.scalars().all()
             return messages
