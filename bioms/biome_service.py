@@ -12,14 +12,21 @@ class BiomeService:
 
     async def create_biome(self, biome: BiomeCreateSchema) -> BiomeSchema:
         async with self.session_factory() as session:
-            try:
-                new_biome = Biome(**biome.dict())
-                session.add(new_biome)
-                await session.commit()
-                return new_biome
-            except SQLAlchemyError as e:
-                session.rollback()
-                raise HTTPException(500, "Error creating biome") from e
+            # try:
+            new_biome = await session.execute(
+                select(Biome).where(Biome.name == biome.name)
+            )
+            if new_biome.scalars().first():
+                raise HTTPException(409, "Biome already exists")
+            new_biome = Biome(**biome.dict())
+            print(new_biome.serialize())
+            session.add(new_biome)
+            await session.commit()
+            await session.refresh(new_biome)
+            return new_biome
+            # except SQLAlchemyError as e:
+            #     await session.rollback()
+            #     raise HTTPException(500, "Error creating biome") from e
 
     async def get_biome(self, biome_id: int) -> BiomeSchema:
         async with self.session_factory() as session:
@@ -31,8 +38,8 @@ class BiomeService:
                 if not biome:
                     raise HTTPException(404, "Biome not found")
                 return biome
-            except SQLAlchemyError as e:
 
+            except SQLAlchemyError as e:
                 raise HTTPException(500, "Error getting biome") from e
 
     async def get_biomes(self) -> list[BiomeSchema]:

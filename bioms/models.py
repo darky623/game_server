@@ -8,6 +8,7 @@ boss_abilities = Table(
     Base.metadata,
     Column("boss_id", Integer, ForeignKey("bosses.id"), primary_key=True),
     Column("ability_id", Integer, ForeignKey("abilities.id"), primary_key=True),
+    Column("biome_id", Integer, ForeignKey("biomes.id"), primary_key=True),
 )
 
 
@@ -22,9 +23,7 @@ class Biome(Base):
     reward_id = Column(Integer, ForeignKey("rewards.id"))
     reward = relationship("Reward", backref="biomes")
 
-    boss_abilities = relationship(
-        "Ability", secondary=boss_abilities, backref="biomes"
-    )
+    boss_abilities = relationship("Ability", secondary=boss_abilities, backref="biomes")
 
     levels = relationship("BiomeLevel", back_populates="biomes")
     player_progress = relationship("PlayerProgress", back_populates="biomes")
@@ -44,14 +43,15 @@ class BiomeLevel(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     number_of_lvl = Column(Integer, default=1)
-    biome_id = Column(Integer, ForeignKey("biomes.id"))
-    biome = relationship("Biome", back_populates="biome_levels")
+
+    biome_id = Column(Integer, ForeignKey("biomes.id"), nullable=True)
+    biome = relationship("Biome", backref="biome_levels")
 
     boss_id = Column(Integer, ForeignKey("bosses.id"))
-    boss = relationship("Boss", backref="biome_level")
+    boss = relationship("Boss", backref="biome_levels")
 
     reward_id = Column(Integer, ForeignKey("rewards.id"))
-    reward = relationship("Reward", backref="biome_level")
+    reward = relationship("Reward", backref="biome_levels")
 
     def serialize(self):
         return {

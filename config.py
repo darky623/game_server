@@ -3,10 +3,15 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-if os.getenv("DOCKER_DB_URL"):
-    db_url = os.getenv('DOCKER_DB_URL')
+PG_URL = os.getenv('PG_URL')
+PG_USERNAME = os.getenv('POSTGRES_USER')
+PG_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+DB_NAME = os.getenv('POSTGRES_DB')
+
+if os.getenv("DOCKER"):
+    db_url = f'postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}'
 else:
-    db_url = os.getenv('DB_URL')
+    db_url = os.getenv('DB_URL_LOCAL')
 
 auth_server = os.getenv('AUTH_SERVER')
 
