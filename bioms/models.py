@@ -2,11 +2,12 @@ from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, LargeBi
 from sqlalchemy.orm import relationship
 
 from database import Base
+from game_logic.models import Character
 
 boss_abilities = Table(
     "boss_abilities",
     Base.metadata,
-    Column("boss_id", Integer, ForeignKey("bosses.id"), primary_key=True),
+    Column("boss_id", Integer, ForeignKey("bosses.boss_id"), primary_key=True),
     Column("ability_id", Integer, ForeignKey("abilities.id"), primary_key=True),
     Column("biome_id", Integer, ForeignKey("biomes.id"), primary_key=True),
 )
@@ -15,7 +16,7 @@ boss_abilities = Table(
 class Biome(Base):
     __tablename__ = "biomes"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(25), nullable=False, unique=True)
     description = Column(Text)
     difficulty_lvl = Column(Integer, default=1)
@@ -23,10 +24,8 @@ class Biome(Base):
     reward_id = Column(Integer, ForeignKey("rewards.id"))
     reward = relationship("Reward", backref="biomes")
 
-    boss_abilities = relationship("Ability", secondary=boss_abilities, backref="biomes")
-
     biome_levels = relationship("BiomeLevel", back_populates="biome")
-    player_progress = relationship("PlayerProgress", back_populates="biomes")
+    player_progress = relationship("PlayerProgress", back_populates="biome")
 
     def serialize(self):
         return {
@@ -41,17 +40,19 @@ class Biome(Base):
 class BiomeLevel(Base):
     __tablename__ = "biome_levels"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True)
     number_of_lvl = Column(Integer, default=1)
 
     biome_id = Column(Integer, ForeignKey("biomes.id"), nullable=True)
     biome = relationship("Biome", back_populates="biome_levels")
 
-    boss_id = Column(Integer, ForeignKey("bosses.id"))
-    boss = relationship("Boss", backref="biome_levels")
+    boss_id = Column(Integer, ForeignKey("bosses.boss_id"))
+    boss = relationship("Boss", back_populates="")
 
     reward_id = Column(Integer, ForeignKey("rewards.id"))
     reward = relationship("Reward", backref="biome_levels")
+
+    player_progress = relationship("PlayerProgress", back_populates="biome_level")
 
     def serialize(self):
         return {
@@ -89,7 +90,7 @@ class PlayerProgress(Base):
 
 class Reward(Base):
     __tablename__ = "rewards"
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     icon = Column(LargeBinary)
     content = Column(Text)
     reward_type = Column(String(25))
@@ -104,16 +105,16 @@ class Reward(Base):
         }
 
 
-class Boss(Base):
+class Boss(Character):
     __tablename__ = "bosses"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
-    ability = relationship("Ability", secondary=boss_abilities, back_populates="bosses")
-    biome_levels = relationship("BiomeLevel", back_populates="bosses")
+    boss_id = Column(Integer, primary_key=True, index=True)
+    character_id = Column(Integer, ForeignKey("characters.id"))
+    biome_levels = relationship("BiomeLevel", back_populates="boss")
 
     def serialize(self):
         return {
-            "id": self.id,
-            "name": self.name,
-            "abilities": [ability.serialize() for ability in self.abilities],
+            "boss_id": self.boss_id,
+            "character_id": self.character_id,
+            "biome_levels": [level.serialize() for level in self.biome_levels],
+            "character": self.character.serialize(),
         }

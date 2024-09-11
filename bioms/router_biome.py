@@ -25,7 +25,7 @@ async def get_all_biomes():
     return await biome_service.get_biomes()
 
 
-@router.patch('/{biome_id}', response_model=BiomeSchema)
+@router.put('/{biome_id}', response_model=BiomeSchema)
 async def update_biome(biome_id: int, biome: BiomeCreateSchema):
     return await biome_service.update_biome(biome_id, biome)
 
