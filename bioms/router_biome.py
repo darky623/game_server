@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from bioms.biome_service import BiomeService
 from database import AsyncSessionFactory
 
-from schemas import BiomeSchema, BiomeCreateSchema
+from bioms.schemas import BiomeSchema, BiomeCreateSchema
 router = APIRouter(prefix="/biome")
 biome_service = BiomeService(AsyncSessionFactory)
 
