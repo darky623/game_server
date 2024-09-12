@@ -66,7 +66,7 @@ class BiomeLevel(Base):
 class PlayerProgress(Base):
     __tablename__ = "player_progress"
     id = Column(Integer, primary_key=True, index=True)
-    player = Column(Integer, ForeignKey("users.id"))
+    player_id = Column(Integer, ForeignKey("users.id"))
 
     biome_id = Column(Integer, ForeignKey("biomes.id"))
     biome = relationship("Biome", back_populates="player_progress")

@@ -22,9 +22,9 @@ class BiomeSchema(BiomeBase):
 
 
 class PlayerProgressBase(BaseModel):
-    player: int
-    biome_id: int
-    biome_level_id: int
+    player_id: int
+    biome_id: int | None = None
+    biome_level_id: int | None = None
     difficult_lvl: Optional[int] = Field(1, ge=1)
     battles: Optional[int] = 0
     victories: Optional[int] = 0
