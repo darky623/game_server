@@ -18,8 +18,8 @@ async def get_player_progress(user: User = Depends(get_current_user)):
 
 
 @router.post('/{user_id}', response_model=PlayerProgressSchema)
-async def create_player_progress(user: int = Depends(get_current_user)):
-    return await service.create_player_progress(user.id)
+async def create_player_progress(user_id: int):
+    return await service.create_player_progress(user_id)
 
 
 @router.patch('/{user_id}', response_model=PlayerProgressSchema)

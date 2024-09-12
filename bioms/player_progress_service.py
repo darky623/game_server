@@ -12,24 +12,26 @@ class PlayerProgressService:
     def __init__(self, session_factory):
         self.session_factory = session_factory
 
-    async def get_player_progress(self, user: User) -> list[PlayerProgressSchema]:
+    async def get_player_progress(self, user_id: User) -> PlayerProgressSchema:
         async with self.session_factory() as session:
             try:
                 result = await session.execute(
-                    select(PlayerProgress).where(PlayerProgress.player_id == user.id)
+                    select(PlayerProgress).where(PlayerProgress.player_id == user_id)
                 )
                 player_progress = result.scalars().all()
                 if not player_progress:
                     raise HTTPException(404, "PlayerProgress not found")
-                player_progress_schemas = [PlayerProgressSchema.from_orm(progress) for progress in player_progress]
-                return player_progress_schemas
+                return player_progress[0]
             except SQLAlchemyError as e:
                 raise RuntimeError("Error getting player progress") from e
 
     async def create_player_progress(self, user_id: int) -> PlayerProgressSchema:
         async with self.session_factory() as session:
             try:
+                if await session.execute(select(PlayerProgress).where(PlayerProgress.player_id == user_id)):
+                    raise HTTPException(409, "PlayerProgress already exists")
                 new_player_progress = PlayerProgress(player_id=user_id)
+
                 session.add(new_player_progress)
                 await session.commit()
                 await session.refresh(new_player_progress)

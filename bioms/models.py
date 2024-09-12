@@ -83,6 +83,7 @@ class PlayerProgress(Base):
     def serialize(self):
         return {
             "id": self.id,
+
             "biome": self.biome.serialize(),
             "biome_level": self.biome_level.serialize(),
         }
