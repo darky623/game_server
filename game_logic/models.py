@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table
+from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table, Enum, orm
 from sqlalchemy.orm import relationship
 from database import Base
+import enum
 
 
 character_items = Table(
@@ -11,30 +12,26 @@ character_items = Table(
 )
 
 
-character_abilities = Table(
-    'character_abilities',
-    Base.metadata,
-    Column('character_id', Integer, ForeignKey('characters.id'), primary_key=True),
-    Column('ability_id', Integer, ForeignKey('abilities.id'), primary_key=True)
-)
-
-
 class Character(Base):
     __tablename__ = "characters"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    # user = relationship("User", backref="characters")
+
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    user = relationship("User", backref="characters", lazy='joined')
     name = Column(String)
 
     character_type_id = Column(Integer, ForeignKey('character_types.id'))
-    character_type = relationship("CharacterType", backref='characters', lazy='selectin')
+    character_type = relationship("CharacterType", backref='characters', lazy='joined')
 
-    archetype_id = Column(Integer, ForeignKey("character_archetypes.id"))
-    archetype = relationship("CharacterArchetype", backref='characters', lazy='selectin')
+    class_id = Column(Integer, ForeignKey("character_classes.id"))
+    character_class = relationship("CharacterClass", backref='characters', lazy='joined')
+
+    subclass_id = Column(Integer, ForeignKey('character_subclasses.id'))
+    subclass = relationship('CharacterSubclass', lazy='joined')
 
     race_id = Column(Integer, ForeignKey('races.id'))
-    race = relationship("Race", backref='characters')
+    race = relationship("Race", backref='characters', lazy='joined')
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
     summand_params = relationship("SummandParams", backref='characters')
@@ -42,15 +39,13 @@ class Character(Base):
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
     multiplier_params = relationship("MultiplierParams", backref='characters')
 
-    items = relationship('Item', secondary=character_items, backref='characters')
-    abilities = relationship('Ability', secondary=character_abilities, backref='characters')
-
     fragments = Column(Integer)
     avatar = Column(String)
     stardom = Column(Integer)
     level = Column(Integer)
 
     base_params = None
+    abilities = []
 
     def calculate_base_params(self):
         result = self.summand_params * (self.multiplier_params * self.level)
@@ -62,6 +57,9 @@ class Character(Base):
             
         self.base_params = result
         return self.base_params
+
+    def definite_abilities(self):
+        ...
 
     def serialize(self):
         return {
@@ -79,23 +77,65 @@ class CharacterType(Base):
     name = Column(String)
 
 
-class CharacterArchetype(Base):
-    __tablename__ = "character_archetypes"
+classes_abilities = Table(
+    'classes_abilities',
+    Base.metadata,
+    Column('class_id', Integer, ForeignKey('character_classes.id'), primary_key=True),
+    Column('ability_id', Integer, ForeignKey('abilities.id'), primary_key=True)
+)
+
+
+class CharacterClass(Base):
+    __tablename__ = "character_classes"
 
     id = Column(Integer, primary_key=True, index=True)
+
     title = Column(String)
+    icon = Column(String)
 
     multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"))
-    multiplier_params = relationship("MultiplierParams")
+    multiplier_params = relationship("MultiplierParams", lazy='selectin')
 
     summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
-    summand_params = relationship("SummandParams")
+    summand_params = relationship("SummandParams", lazy='selectin')
+
+    subclasses = relationship('CharacterSubclass', back_populates='class')
+
+    abilities = relationship('Ability', secondary=classes_abilities)
 
     def serialize(self):
         return {
             'id': self.id,
             'title': self.title,
         }
+
+
+subclasses_abilities = Table(
+    'subclasses_abilities',
+    Base.metadata,
+    Column('subclass_id', Integer, ForeignKey('character_subclasses.id'), primary_key=True),
+    Column('ability_id', Integer, ForeignKey('abilities.id'), primary_key=True)
+)
+
+
+class CharacterSubclass(Base):
+    __tablename__ = "character_subclasses"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    title = Column(String)
+    icon = Column(String)
+
+    multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"))
+    multiplier_params = relationship("MultiplierParams", lazy='joined')
+
+    summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
+    summand_params = relationship("SummandParams", lazy='joined')
+
+    character_class_id = Column(Integer, ForeignKey('character_classes.id'))
+    character_class = relationship('CharacterClass', back_populates='subclasses', lazy='joined')
+
+    abilities = relationship('Ability', secondary=subclasses_abilities)
 
 
 class MultiplierParams(Base):
@@ -105,16 +145,11 @@ class MultiplierParams(Base):
 
     damage = Column(Float, default=1)
     vitality = Column(Float, default=1)
-    strength = Column(Float, default=1)
-    agility = Column(Float, default=1)
-    intelligence = Column(Float, default=1)
     speed = Column(Float, default=1)
-    physical_resistance = Column(Float, default=1)
-    magical_resistance = Column(Float, default=1)
+    resistance = Column(Float, default=1)
     critical_hit_chance = Column(Float, default=1)
     evasion = Column(Float, default=1)
     true_damage = Column(Float, default=1)
-    accuracy = Column(Float, default=1)
     spirit = Column(Float, default=1)
 
     def __mul__(self, other):
@@ -122,48 +157,33 @@ class MultiplierParams(Base):
             return MultiplierParams(
                 damage=self.damage * other,
                 vitality=self.vitality * other,
-                strength=self.strength * other,
-                agility=self.agility * other,
-                intelligence=self.intelligence * other,
                 speed=self.speed * other,
-                physical_resistance=self.physical_resistance * other,
-                magical_resistance=self.magical_resistance * other,
+                resistance=self.physical_resistance * other,
                 critical_hit_chance=self.critical_hit_chance * other,
                 evasion=self.evasion * other,
                 true_damage=self.true_damage * other,
-                accuracy=self.accuracy * other,
                 spirit=self.spirit * other
             )
         elif isinstance(other, MultiplierParams):
             return MultiplierParams(
                 damage=self.damage * other.damage,
                 vitality=self.vitality * other.vitality,
-                strength=self.strength * other.strength,
-                agility=self.agility * other.agility,
-                intelligence=self.intelligence * other.intelligence,
                 speed=self.speed * other.speed,
-                physical_resistance=self.physical_resistance * other.physical_resistance,
-                magical_resistance=self.magical_resistance * other.magical_resistance,
+                resistance=self.physical_resistance * other.resistance,
                 critical_hit_chance=self.critical_hit_chance * other.critical_hit_chance,
                 evasion=self.evasion * other.evasion,
                 true_damage=self.true_damage * other.true_damage,
-                accuracy=self.accuracy * other.accuracy,
                 spirit=self.spirit * other.spirit
             )
         elif isinstance(other, SummandParams):
             return SummandParams(
                 damage=self.damage * other.damage,
                 vitality=self.vitality * other.vitality,
-                strength=self.strength * other.strength,
-                agility=self.agility * other.agility,
-                intelligence=self.intelligence * other.intelligence,
                 speed=self.speed * other.speed,
-                physical_resistance=self.physical_resistance * other.physical_resistance,
-                magical_resistance=self.magical_resistance * other.magical_resistance,
+                resistance=self.physical_resistance * other.resistance,
                 critical_hit_chance=self.critical_hit_chance * other.critical_hit_chance,
                 evasion=self.evasion * other.evasion,
                 true_damage=self.true_damage * other.true_damage,
-                accuracy=self.accuracy * other.accuracy,
                 spirit=self.spirit * other.spirit
             )
         return NotImplemented
@@ -176,16 +196,11 @@ class SummandParams(Base):
 
     damage = Column(Float, default=0)
     vitality = Column(Float, default=0)
-    strength = Column(Float, default=0)
-    agility = Column(Float, default=0)
-    intelligence = Column(Float, default=0)
     speed = Column(Float, default=0)
-    physical_resistance = Column(Float, default=0)
-    magical_resistance = Column(Float, default=0)
+    resistance = Column(Float, default=0)
     critical_hit_chance = Column(Float, default=0)
     evasion = Column(Float, default=0)
     true_damage = Column(Float, default=0)
-    accuracy = Column(Float, default=0)
     spirit = Column(Float, default=0)
 
     def __add__(self, other):
@@ -193,16 +208,11 @@ class SummandParams(Base):
             return SummandParams(
                 damage=self.damage + other.damage,
                 vitality=self.vitality + other.vitality,
-                strength=self.strength + other.strength,
-                agility=self.agility + other.agility,
-                intelligence=self.intelligence + other.intelligence,
                 speed=self.speed + other.speed,
-                physical_resistance=self.physical_resistance + other.physical_resistance,
-                magical_resistance=self.magical_resistance + other.magical_resistance,
+                resistance=self.physical_resistance + other.resistance,
                 critical_hit_chance=self.critical_hit_chance + other.critical_hit_chance,
                 evasion=self.evasion + other.evasion,
                 true_damage=self.true_damage + other.true_damage,
-                accuracy=self.accuracy + other.accuracy,
                 spirit=self.spirit + other.spirit
             )
         return NotImplemented
@@ -212,16 +222,11 @@ class SummandParams(Base):
             return SummandParams(
                 damage=self.damage * other,
                 vitality=self.vitality * other,
-                strength=self.strength * other,
-                agility=self.agility * other,
-                intelligence=self.intelligence * other,
                 speed=self.speed * other,
-                physical_resistance=self.physical_resistance * other,
-                magical_resistance=self.magical_resistance * other,
+                resistance=self.physical_resistance * other,
                 critical_hit_chance=self.critical_hit_chance * other,
                 evasion=self.evasion * other,
                 true_damage=self.true_damage * other,
-                accuracy=self.accuracy * other,
                 spirit=self.spirit * other
             )
         return NotImplemented
@@ -236,8 +241,7 @@ class Item(Base):
     level = Column(Integer)
     icon = Column(String)
 
-    tier_id = Column(Integer, ForeignKey('item_tiers.id'))
-    tier = relationship('ItemTier')
+    tier = relationship(Integer)
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
     summand_params = relationship("SummandParams")
@@ -245,12 +249,19 @@ class Item(Base):
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
     multiplier_params = relationship("MultiplierParams")
 
+    @orm.validates('tier')
+    def validate_tier_number(self, key, value):
+        if not 0 <= value <= 5:
+            raise ValueError(f'Invalid ability tier {value}')
+        return value
 
-class ItemTier(Base):
-    __tablename__ = 'item_tiers'
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
+races_abilities = Table(
+    'races_abilities',
+    Base.metadata,
+    Column('race_id', Integer, ForeignKey('races.id'), primary_key=True),
+    Column('ability_id', Integer, ForeignKey('abilities.id'), primary_key=True)
+)
 
 
 class Race(Base):
@@ -258,13 +269,29 @@ class Race(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    name = Column(String)
+    name = Column(String, nullable=False)
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
     summand_params = relationship("SummandParams")
 
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
     multiplier_params = relationship("MultiplierParams")
+
+    abilities = relationship('Ability', secondary=races_abilities, lazy='joined')
+
+
+class TriggerCondition(enum.Enum):
+    ON_START = 'on_start'
+    ON_MOTION_START = 'on_motion_end'
+    ON_COMMON_ATTACK = 'on_common_attack'
+    ON_ULTIMATE_ATTACK = 'on_ultimate_attack'
+    PASSIVE = 'passive'
+    ON_BUFF = 'on_buff'
+    ON_DEBUFF = 'on_debuff'
+    ON_DEATH = 'on_death'
+    ON_TEAMMATE_ATTACK = 'on_teammate_attack'
+    ON_REVIVE = 'on_revive'
+    ON_SUMMONED = 'on_summoned'
 
 
 class Ability(Base):
@@ -275,8 +302,7 @@ class Ability(Base):
     name = Column(String)
     icon = Column(String)
 
-    ability_tier_id = Column(Integer, ForeignKey('ability_tiers.id'))
-    ability_tier = relationship('AbilityTier')
+    tier = Column(Integer, nullable=False, default=0)
 
     ability_type_id = Column(Integer, ForeignKey('ability_types.id'))
     ability_type = relationship('AbilityType')
@@ -287,13 +313,21 @@ class Ability(Base):
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'), nullable=True)
     multiplier_params = relationship("MultiplierParams")
 
-    chance = Column(Float)
+    chance = Column(Float, default=1)
     summoned_character_id = Column(Integer, ForeignKey('characters.id'), nullable=True)
-    summoned_character = relationship('Character')
+    summoned_character = relationship('Character', lazy='joined')
     summoned_quantity = Column(Integer, default=0)
+
+    trigger_condition = Column(Enum(TriggerCondition), nullable=False)
 
     damage = Column(Integer, default=0)
     healing = Column(Integer, default=0)
+
+    @orm.validates('tier')
+    def validate_tier_number(self, key, value):
+        if not 0 <= value <= 5:
+            raise ValueError(f'Invalid ability tier {value}')
+        return value
 
 
 class AbilityType(Base):
@@ -301,13 +335,3 @@ class AbilityType(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-
-
-class AbilityTier(Base):
-    __tablename__ = 'ability_tiers'
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-
-
-
