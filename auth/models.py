@@ -17,6 +17,7 @@ class User(Base):
     auth_sessions = relationship("AuthSession", back_populates="user", lazy='selectin')
     characters = relationship("Character", backref="user", lazy='selectin')
     chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='selectin')
+    player_progress = relationship("PlayerProgress", back_populates="player", lazy='selectin')
 
     def serialize(self):
         return {

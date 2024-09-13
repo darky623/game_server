@@ -13,20 +13,20 @@ service = PlayerProgressService(AsyncSessionFactory)
 
 
 @router.get('/{user_id}', response_model=PlayerProgressSchema)
-async def get_player_progress(user: User = Depends(get_current_user)):
-    return await service.get_player_progress(user)
+async def get_player_progress(user_id: int) -> PlayerProgressSchema:
+    return await service.get_player_progress(user_id)
 
 
-@router.post('/{user_id}', response_model=PlayerProgressSchema)
-async def create_player_progress(user_id: int):
-    return await service.create_player_progress(user_id)
+@router.post('', response_model=PlayerProgressSchema)
+async def create_player_progress(user: User = Depends(get_current_user)) -> PlayerProgressSchema:
+    return await service.create_player_progress(user.id)
 
 
 @router.patch('/{user_id}', response_model=PlayerProgressSchema)
-async def update_player_progress(update: PlayerProgressSchema):
+async def update_player_progress(update: PlayerProgressSchema) -> PlayerProgressSchema:
     return await service.update_player_progress(update)
 
 
 @router.delete('/{user_id}')
-async def delete_player_progress(user: User = Depends(get_current_user)):
-    await service.delete_player_progress(user.id)
+async def delete_player_progress(user_id: int):
+    await service.delete_player_progress(user_id)

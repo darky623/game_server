@@ -28,16 +28,19 @@ class PlayerProgressService:
     async def create_player_progress(self, user_id: int) -> PlayerProgressSchema:
         async with self.session_factory() as session:
             try:
-                if await session.execute(select(PlayerProgress).where(PlayerProgress.player_id == user_id)):
-                    raise HTTPException(409, "PlayerProgress already exists")
-                new_player_progress = PlayerProgress(player_id=user_id)
+                current_player_progress = await session.execute(select(PlayerProgress).where(
+                    PlayerProgress.player_id == user_id)
+                )
+                if current_player_progress.scalars().first() is None:
+                    new_player_progress = PlayerProgress(player_id=user_id)
 
-                session.add(new_player_progress)
-                await session.commit()
-                await session.refresh(new_player_progress)
-                return new_player_progress
+                    session.add(new_player_progress)
+                    await session.commit()
+                    await session.refresh(new_player_progress)
+                    return new_player_progress
+                raise HTTPException(409, "PlayerProgress already exists")
             except SQLAlchemyError as e:
-                session.rollback()
+                await session.rollback()
                 raise HTTPException(500, "Error creating player progress") from e
 
     async def update_player_progress(
@@ -65,16 +68,17 @@ class PlayerProgressService:
 
     async def delete_player_progress(self, user_id: int):
         async with self.session_factory() as session:
-            try:
-                result = await session.execute(
-                    select(PlayerProgress).where(PlayerProgress.player_id == user_id)
-                )
-                player_progress = result.scalars().first()
-                if not player_progress:
-                    raise HTTPException(404, "PlayerProgress not found")
+            # try:
+            result = await session.execute(
+                select(PlayerProgress).where(PlayerProgress.player_id == user_id)
+            )
+            player_progress = result.scalars().first()
+            if not player_progress:
+                raise HTTPException(404, "PlayerProgress not found")
 
-                await session.delete(player_progress)
-                await session.commit()
-            except SQLAlchemyError as e:
-                await session.rollback()
-                raise HTTPException(500, "Error deleting player progress") from e
+            await session.delete(player_progress)
+            await session.commit()
+            await session.refresh(player_progress)
+            # except SQLAlchemyError as e:
+            #     await session.rollback()
+            #     raise HTTPException(500, "Error deleting player progress") from e
