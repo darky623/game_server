@@ -13,6 +13,9 @@ class BiomeService:
     async def create_biome(self, biome: BiomeCreateSchema) -> BiomeSchema:
         async with self.session_factory() as session:
             try:
+                result = session.execute(select(Biome).where(Biome.name == biome.name))
+                if result.scalars().first():
+                    raise HTTPException(409, "Biome with that name already exists")
                 new_biome = Biome(**biome.dict())
                 session.add(new_biome)
                 await session.commit()
@@ -30,8 +33,8 @@ class BiomeService:
                     select(Biome).where(Biome.id == biome_id)
                 )
                 biome = result.scalars().first()
-                if not biome:
-                    raise HTTPException(404, "Biome not found")
+                if biome is None:
+                    raise HTTPException(404, "Biome with this ID not found")
                 return biome
 
             except SQLAlchemyError as e:
@@ -42,6 +45,8 @@ class BiomeService:
             try:
                 result = await session.execute(select(Biome))
                 biomes = result.scalars().all()
+                if biomes is None:
+                    raise HTTPException(404, "Biomes not found")
                 return biomes
             except SQLAlchemyError as e:
                 raise HTTPException(500, "Error getting biomes") from e
@@ -55,8 +60,8 @@ class BiomeService:
                     select(Biome).where(Biome.id == biome_id)
                 )
                 biome = result.scalars().first()
-                if not biome:
-                    raise HTTPException(404, "Biome not found")
+                if biome is None:
+                    raise HTTPException(404, "Biome with this ID not found")
 
                 for key, value in updated.dict().items():
                     if hasattr(biome, key):  # Проверяем, что у биома есть такое поле
@@ -65,6 +70,7 @@ class BiomeService:
                 await session.commit()
                 await session.refresh(biome)
                 return biome
+
             except SQLAlchemyError as e:
                 await session.rollback()
                 raise HTTPException(500, "Error updating biome") from e
@@ -76,11 +82,23 @@ class BiomeService:
                     select(Biome).where(Biome.id == biome_id)
                 )
                 biome = result.scalars().first()
-                if not biome:
-                    raise HTTPException(404, "Biome not found")
+                if biome is None:
+                    raise HTTPException(404, "Biome with this ID not found")
 
                 await session.delete(biome)
                 await session.commit()
+
             except SQLAlchemyError as e:
                 await session.rollback()
                 raise HTTPException(500, "Error deleting biome") from e
+
+    async def get_biome_by_name(self, name: str) -> BiomeSchema:
+        async with self.session_factory() as session:
+            try:
+                result = await session.execute(select(Biome).where(Biome.name == name))
+                biome = result.scalars().first()
+                if biome is None:
+                    raise HTTPException(404, "Biome with this name not found")
+                return biome
+            except SQLAlchemyError as e:
+                raise HTTPException(500, "Error getting biome") from e

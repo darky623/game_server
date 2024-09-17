@@ -18,26 +18,31 @@ class PlayerProgressService:
                 result = await session.execute(
                     select(PlayerProgress).where(PlayerProgress.player_id == user_id)
                 )
-                player_progress = result.scalars().all()
-                if not player_progress:
+                player_progress = result.scalars().first()
+                if player_progress is None:
                     raise HTTPException(404, "PlayerProgress not found")
-                return player_progress[0]
+
+                return player_progress
+
             except SQLAlchemyError as e:
-                raise RuntimeError("Error getting player progress") from e
+                raise HTTPException(500, "Error getting player progress") from e
 
     async def create_player_progress(self, user_id: int) -> PlayerProgressSchema:
         async with self.session_factory() as session:
             try:
-                current_player_progress = await session.execute(select(PlayerProgress).where(
-                    PlayerProgress.player_id == user_id)
+                result = await session.execute(
+                    select(PlayerProgress).where(PlayerProgress.player_id == user_id)
                 )
-                if current_player_progress.scalars().first() is None:
+
+                current_player_progress = result.scalars().first()
+                if current_player_progress is None:
                     new_player_progress = PlayerProgress(player_id=user_id)
 
                     session.add(new_player_progress)
                     await session.commit()
                     await session.refresh(new_player_progress)
                     return new_player_progress
+
                 raise HTTPException(409, "PlayerProgress already exists")
             except SQLAlchemyError as e:
                 await session.rollback()
@@ -52,7 +57,7 @@ class PlayerProgressService:
                     select(PlayerProgress).where(PlayerProgress.id == update.id)
                 )
                 player_progress = result.scalars().first()
-                if not player_progress:
+                if player_progress is None:
                     raise HTTPException(404, "PlayerProgress not found")
 
                 for key, value in update.dict().items():
@@ -68,17 +73,17 @@ class PlayerProgressService:
 
     async def delete_player_progress(self, user_id: int):
         async with self.session_factory() as session:
-            # try:
-            result = await session.execute(
-                select(PlayerProgress).where(PlayerProgress.player_id == user_id)
-            )
-            player_progress = result.scalars().first()
-            if not player_progress:
-                raise HTTPException(404, "PlayerProgress not found")
+            try:
+                result = await session.execute(
+                    select(PlayerProgress).where(PlayerProgress.player_id == user_id)
+                )
+                player_progress = result.scalars().first()
+                if player_progress is None:
+                    raise HTTPException(404, "PlayerProgress not found")
 
-            await session.delete(player_progress)
-            await session.commit()
-            await session.refresh(player_progress)
-            # except SQLAlchemyError as e:
-            #     await session.rollback()
-            #     raise HTTPException(500, "Error deleting player progress") from e
+                await session.delete(player_progress)
+                await session.commit()
+                await session.refresh(player_progress)
+            except SQLAlchemyError as e:
+                await session.rollback()
+                raise HTTPException(500, "Error deleting player progress") from e
