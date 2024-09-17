@@ -36,6 +36,10 @@ class PlayerProgressCreateSchema(PlayerProgressBase):
     pass
 
 
+class PlayerProgressUpdateSchema(PlayerProgressBase):
+    pass
+
+
 class PlayerProgressSchema(PlayerProgressBase):
     id: int
 
