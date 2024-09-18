@@ -24,6 +24,7 @@ from auth.models import *
 from game_logic.models import *
 from chat.models import *
 from bioms.models import *
+from friends.models import *
 from database import Base
 from config import db_url
 target_metadata = Base.metadata
