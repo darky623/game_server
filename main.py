@@ -8,6 +8,7 @@ from bioms.router_biome import router as biome_router
 from bioms.router_player_progress import router as player_progress_router
 from chat.router import router as chat_router
 from chat.websocket import router as chat_websocket_router
+from friends.router import router as friends_router
 from database import AsyncSessionFactory
 from game_logic.models import CharacterArchetype, Character
 
@@ -19,6 +20,7 @@ app.include_router(chat_router)
 app.include_router(chat_websocket_router)
 app.include_router(biome_router)
 app.include_router(player_progress_router)
+app.include_router(friends_router)
 
 
 app.add_middleware(
