@@ -1,3 +1,5 @@
+from sqlalchemy import select
+
 from auth.models import User
 
 from chat.router import chat_service
@@ -26,31 +28,22 @@ class FriendService:
     @staticmethod
     async def _get_request_by_id(request_id: int, session):
         """Вспомогательная функция для поиска запроса по ID"""
-        request = (
-            session.query(RequestToFriend)
-            .filter(RequestToFriend.id == request_id)
-            .first()
+        result = await session.execute(
+            select(RequestToFriend).where(RequestToFriend.id == request_id)
         )
-        if not request:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Заявка не найдена"
-            )
+        request = result.scalars().first()
         return request
 
     @staticmethod
-    async def _check_existing_friendship(
-        request: RequestToFriendCreate, session
-    ):
+    async def _check_existing_friendship(request: RequestToFriendCreate, session):
         """Проверка на существующую дружбу"""
-        existing_friend = (
-            session.query(Friend)
-            .filter(
+        result = await session.execute(
+            select(Friend).where(
                 Friend.owner_id == request.sender_id,
                 Friend.friend_id == request.recipient_id,
             )
-            .first()
         )
-
+        existing_friend = result.scalars().first()
         if existing_friend:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -71,15 +64,9 @@ class FriendService:
             await self._check_existing_friendship(request, session)
 
             # Проверка на существование заявки
-            existing_request = (
-                session.query(RequestToFriend)
-                .filter(
-                    RequestToFriend.sender_id == request.sender_id,
-                    RequestToFriend.recipient_id == request.recipient_id,
-                )
-                .first()
+            existing_request = await self._get_request_by_id(
+                request.recipient_id, session
             )
-
             if existing_request:
                 # Если заявка уже существует, возвращаем сообщение, что заявка уже отправлена
                 raise HTTPException(
@@ -92,10 +79,10 @@ class FriendService:
             session.add(new_request)
             await session.commit()
             await session.refresh(new_request)
-            return JSONResponse(
-                content={"message": "Заявка в друзья отправлена"},
-                status_code=status.HTTP_201_CREATED,
-            )
+        return JSONResponse(
+            content={"message": "Заявка в друзья отправлена"},
+            status_code=status.HTTP_201_CREATED,
+        )
 
     async def accept_friend_request(self, request_id: int) -> JSONResponse:
         """Принять заявку в друзья"""
@@ -107,36 +94,31 @@ class FriendService:
                 )
 
             request.status = True
+            new_friendship = Friend(owner_id=request.sender_id, friend_id=request.recipient_id)
+            session.add(new_friendship)
             await session.commit()
-            return JSONResponse(
-                content={"message": "Заявка принята"}, status_code=status.HTTP_200_OK
-            )
+        return JSONResponse(
+            content={"message": "Заявка принята"}, status_code=status.HTTP_200_OK
+        )
 
     async def cancel_friend_request(self, request_id: int) -> JSONResponse:
-        """Отменить заявку в друзья"""
+        """Отменить отправленную заявку в друзья"""
         async with self.session_factory() as session:
-            request = await self._get_request_by_id(request_id)
+            request = await self._get_request_by_id(request_id, session)
             await session.delete(request)
             await session.commit()
-            return JSONResponse(
-                content={"message": "Заявка в друзья отменена"},
-                status_code=status.HTTP_200_OK,
-            )
-
-    async def decline_friend_request(self, request_id: int) -> JSONResponse:
-        """Отклонить заявку в друзья"""
-        async with self.session_factory() as session:
-            request = await self._get_request_by_id(request_id)
-            await session.delete(request)
-            await session.commit()
-            return JSONResponse(
-                content={"message": "Заявка отклонена"}, status_code=status.HTTP_200_OK
-            )
+        return JSONResponse(
+            content={"message": "Заявка в друзья отменена"},
+            status_code=status.HTTP_200_OK,
+        )
 
     async def remove_friend(self, friend_id: int) -> JSONResponse:
         """Удалить из друзей"""
         async with self.session_factory() as session:
-            friend = session.query(Friend).filter(Friend.friend_id == friend_id).first()
+            result = await session.execute(
+                select(Friend).filter(Friend.friend_id == friend_id)
+            )
+            friend = result.scalar().first()
             if not friend:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Друг не найден"
@@ -153,10 +135,25 @@ class FriendService:
         """Получить список друзей"""
 
         async with self.session_factory() as session:
-            friends = (
-                session.query(User)
-                .join(Friend, User.id == Friend.friend_id)
-                .filter(Friend.owner_id == user_id)
-                .all()
+            result = await session.execute(
+                select(Friend)
+                .join(User, Friend.owner_id == User.id)
+                .filter(Friend.friend_id == user_id)
             )
+
+            friends = result.scalars().all()
             return friends
+
+    async def get_incoming_friend_requests(self, user_id: int) -> list[RequestToFriend]:
+        """Получить входящие заявки в друзья"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(RequestToFriend).where(RequestToFriend.recipient_id == user_id)
+            )
+            incoming_requests = result.scalars().all()
+            print(f"Incoming requests for user {user_id}: {incoming_requests}")
+            return incoming_requests
+
+
+
+
