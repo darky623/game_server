@@ -13,7 +13,7 @@ class BiomeService:
     async def create_biome(self, biome: BiomeCreateSchema) -> BiomeSchema:
         async with self.session_factory() as session:
             try:
-                result = session.execute(select(Biome).where(Biome.name == biome.name))
+                result = await session.execute(select(Biome).where(Biome.name == biome.name))
                 if result.scalars().first():
                     raise HTTPException(409, "Biome with that name already exists")
                 new_biome = Biome(**biome.dict())
