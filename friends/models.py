@@ -10,10 +10,10 @@ class Friend(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    owner = relationship("User", backref="friends")
+    owner = relationship("User", foreign_keys=[owner_id], backref="friends")
 
     friend_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    friend = relationship("User", backref="friend_requests")
+    friend = relationship("User", foreign_keys=[friend_id], backref="friend_requests")
 
     request_to_add_id = Column(Integer, ForeignKey("request_to_friends.id"), nullable=True)
     request_to_add = relationship("RequestToFriend", backref="friends")
@@ -33,10 +33,10 @@ class RequestToFriend(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    sender = relationship("User", backref="sent_friend_requests")
+    sender = relationship("User", foreign_keys=[sender_id], backref="sent_friend_requests")
 
     recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    recipient = relationship("User", backref="received_friend_requests")
+    recipient = relationship("User", foreign_keys=[recipient_id], backref="received_friend_requests")
 
     status = Column(Boolean, default=False)
 
