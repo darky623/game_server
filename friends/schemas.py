@@ -28,3 +28,7 @@ class RequestToFriendCreate(RequestToFriendBase):
 
 class RequestToFriendUpdate(RequestToFriendBase):
     pass
+
+
+class RequestToFriendDelete(RequestToFriendBase):
+    pass
