@@ -14,6 +14,7 @@ class User(Base):
     email = Column(String)
     status = Column(String, default='active')
     create_date = Column(DateTime)
+    last_login = Column(DateTime)
     auth_sessions = relationship("AuthSession", back_populates="user", lazy='selectin')
     characters = relationship("Character", backref="user", lazy='selectin')
     chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='selectin')
