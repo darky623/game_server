@@ -6,3 +6,5 @@ starlette~=0.38.4
 alembic~=1.13.2
 asyncpg
 uvicorn[standard]
+redis~=5.0.8
+typing_extensions~=4.12.2

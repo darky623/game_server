@@ -15,9 +15,10 @@ class User(Base):
     status = Column(String, default='active')
     create_date = Column(DateTime)
     last_login = Column(DateTime)
-    auth_sessions = relationship("AuthSession", back_populates="user", lazy='selectin')
-    characters = relationship("Character", backref="user", lazy='selectin')
-    chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='selectin')
+    auth_sessions = relationship("AuthSession", back_populates="user", lazy='joined')
+    characters = relationship("Character", back_populates="user")
+    chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='joined')
+
 
     def serialize(self):
         return {
@@ -34,7 +35,7 @@ class AuthSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="auth_sessions", lazy='selectin')
+    user = relationship("User", back_populates="auth_sessions", lazy='joined')
     token = Column(String)
     status = Column(String, default="active")
     create_date = Column(DateTime)

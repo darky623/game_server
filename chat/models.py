@@ -18,8 +18,8 @@ class Chat(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     type = Column(String)
-    users = relationship('User', secondary=users_chats, back_populates='chats', lazy='selectin')
-    messages = relationship('Message', back_populates='chat', lazy='selectin')
+    users = relationship('User', secondary=users_chats, back_populates='chats', lazy='joined')
+    messages = relationship('Message', back_populates='chat')
 
 
 class Message(Base):
@@ -28,10 +28,10 @@ class Message(Base):
     id = Column(Integer, primary_key=True, index=True)
     text = Column(VARCHAR(150), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    user = relationship('User', lazy='selectin')
+    user = relationship('User', lazy='joined')
     timestamp = Column(DateTime)
     chat_id = Column(Integer, ForeignKey('chats.id'))
-    chat = relationship('Chat', back_populates='messages', lazy='selectin')
+    chat = relationship('Chat', back_populates='messages', lazy='joined')
 
     def serialize(self):
         return {
