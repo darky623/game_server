@@ -12,17 +12,22 @@ character_items = Table(
 )
 
 
+class CharacterType(enum.Enum):
+    MAIN = 'main'
+    SECONDARY = 'secondary'
+    COLLECTIBLE = 'collectible'
+
+
 class Character(Base):
     __tablename__ = "characters"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer, ForeignKey("users.id"), index=True)
-    user = relationship("User", backref="characters", lazy='joined')
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True)
+    user = relationship("User", back_populates="characters", lazy='joined')
     name = Column(String)
 
-    character_type_id = Column(Integer, ForeignKey('character_types.id'))
-    character_type = relationship("CharacterType", backref='characters', lazy='joined')
+    character_type = Column(Enum(CharacterType), nullable=False)
 
     class_id = Column(Integer, ForeignKey("character_classes.id"))
     character_class = relationship("CharacterClass", backref='characters', lazy='joined')
@@ -34,12 +39,14 @@ class Character(Base):
     race = relationship("Race", backref='characters', lazy='joined')
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
-    summand_params = relationship("SummandParams", backref='characters')
+    summand_params = relationship("SummandParams", lazy='joined', cascade='all, delete')
 
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
-    multiplier_params = relationship("MultiplierParams", backref='characters')
+    multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete')
 
-    fragments = Column(Integer)
+    items = relationship('Item', secondary=character_items, lazy='joined')
+
+    fragments = Column(Integer, default=0)
     avatar = Column(String)
     stardom = Column(Integer)
     level = Column(Integer)
@@ -49,8 +56,8 @@ class Character(Base):
 
     def calculate_base_params(self):
         result = self.summand_params * (self.multiplier_params * self.level)
-        result += self.archetype.summand_params + self.race.summand_params
-        result *= self.archetype.multiplier_params * self.race.multiplier_params
+        result += self.character_class.summand_params + self.race.summand_params
+        result *= self.character_class.multiplier_params * self.race.multiplier_params
         result += sum([item.summand_params for item in self.items])
         for item in self.items:
             result *= item.multiplier_params
@@ -66,15 +73,8 @@ class Character(Base):
             'id': self.id,
             'user_id': self.user_id,
             'name': self.name,
-            'archetype_id': self.archetype_id,
+            'class_id': self.class_id,
         }
-
-
-class CharacterType(Base):
-    __tablename__ = 'character_types'
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
 
 
 classes_abilities = Table(
@@ -94,14 +94,14 @@ class CharacterClass(Base):
     icon = Column(String)
 
     multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"))
-    multiplier_params = relationship("MultiplierParams", lazy='selectin')
+    multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete')
 
     summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
-    summand_params = relationship("SummandParams", lazy='selectin')
+    summand_params = relationship("SummandParams", lazy='joined', cascade='all, delete')
 
-    subclasses = relationship('CharacterSubclass', back_populates='class')
+    subclasses = relationship('CharacterSubclass', back_populates='character_class', lazy='joined')
 
-    abilities = relationship('Ability', secondary=classes_abilities)
+    abilities = relationship('Ability', secondary=classes_abilities, lazy='joined')
 
     def serialize(self):
         return {
@@ -127,15 +127,15 @@ class CharacterSubclass(Base):
     icon = Column(String)
 
     multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"))
-    multiplier_params = relationship("MultiplierParams", lazy='joined')
+    multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete')
 
     summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
-    summand_params = relationship("SummandParams", lazy='joined')
+    summand_params = relationship("SummandParams", lazy='joined', cascade='all, delete')
 
     character_class_id = Column(Integer, ForeignKey('character_classes.id'))
-    character_class = relationship('CharacterClass', back_populates='subclasses', lazy='joined')
+    character_class = relationship('CharacterClass', back_populates='subclasses')
 
-    abilities = relationship('Ability', secondary=subclasses_abilities)
+    abilities = relationship('Ability', secondary=subclasses_abilities, lazy='joined')
 
 
 class MultiplierParams(Base):
@@ -147,10 +147,7 @@ class MultiplierParams(Base):
     vitality = Column(Float, default=1)
     speed = Column(Float, default=1)
     resistance = Column(Float, default=1)
-    critical_hit_chance = Column(Float, default=1)
     evasion = Column(Float, default=1)
-    true_damage = Column(Float, default=1)
-    spirit = Column(Float, default=1)
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
@@ -158,33 +155,24 @@ class MultiplierParams(Base):
                 damage=self.damage * other,
                 vitality=self.vitality * other,
                 speed=self.speed * other,
-                resistance=self.physical_resistance * other,
-                critical_hit_chance=self.critical_hit_chance * other,
-                evasion=self.evasion * other,
-                true_damage=self.true_damage * other,
-                spirit=self.spirit * other
+                resistance=self.resistance * other,
+                evasion=self.evasion * other
             )
         elif isinstance(other, MultiplierParams):
             return MultiplierParams(
                 damage=self.damage * other.damage,
                 vitality=self.vitality * other.vitality,
                 speed=self.speed * other.speed,
-                resistance=self.physical_resistance * other.resistance,
-                critical_hit_chance=self.critical_hit_chance * other.critical_hit_chance,
-                evasion=self.evasion * other.evasion,
-                true_damage=self.true_damage * other.true_damage,
-                spirit=self.spirit * other.spirit
+                resistance=self.resistance * other.resistance,
+                evasion=self.evasion * other.evasion
             )
         elif isinstance(other, SummandParams):
             return SummandParams(
                 damage=self.damage * other.damage,
                 vitality=self.vitality * other.vitality,
                 speed=self.speed * other.speed,
-                resistance=self.physical_resistance * other.resistance,
-                critical_hit_chance=self.critical_hit_chance * other.critical_hit_chance,
+                resistance=self.resistance * other.resistance,
                 evasion=self.evasion * other.evasion,
-                true_damage=self.true_damage * other.true_damage,
-                spirit=self.spirit * other.spirit
             )
         return NotImplemented
 
@@ -198,10 +186,7 @@ class SummandParams(Base):
     vitality = Column(Float, default=0)
     speed = Column(Float, default=0)
     resistance = Column(Float, default=0)
-    critical_hit_chance = Column(Float, default=0)
     evasion = Column(Float, default=0)
-    true_damage = Column(Float, default=0)
-    spirit = Column(Float, default=0)
 
     def __add__(self, other):
         if isinstance(other, SummandParams):
@@ -209,11 +194,8 @@ class SummandParams(Base):
                 damage=self.damage + other.damage,
                 vitality=self.vitality + other.vitality,
                 speed=self.speed + other.speed,
-                resistance=self.physical_resistance + other.resistance,
-                critical_hit_chance=self.critical_hit_chance + other.critical_hit_chance,
+                resistance=self.resistance + other.resistance,
                 evasion=self.evasion + other.evasion,
-                true_damage=self.true_damage + other.true_damage,
-                spirit=self.spirit + other.spirit
             )
         return NotImplemented
 
@@ -223,11 +205,8 @@ class SummandParams(Base):
                 damage=self.damage * other,
                 vitality=self.vitality * other,
                 speed=self.speed * other,
-                resistance=self.physical_resistance * other,
-                critical_hit_chance=self.critical_hit_chance * other,
+                resistance=self.resistance * other,
                 evasion=self.evasion * other,
-                true_damage=self.true_damage * other,
-                spirit=self.spirit * other
             )
         return NotImplemented
 
@@ -241,13 +220,13 @@ class Item(Base):
     level = Column(Integer)
     icon = Column(String)
 
-    tier = relationship(Integer)
+    tier = Column(Integer)
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
-    summand_params = relationship("SummandParams")
+    summand_params = relationship("SummandParams", lazy='joined', cascade='all, delete')
 
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
-    multiplier_params = relationship("MultiplierParams")
+    multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete')
 
     @orm.validates('tier')
     def validate_tier_number(self, key, value):
@@ -272,10 +251,10 @@ class Race(Base):
     name = Column(String, nullable=False)
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
-    summand_params = relationship("SummandParams")
+    summand_params = relationship("SummandParams", lazy='joined', cascade='all, delete', single_parent=True)
 
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
-    multiplier_params = relationship("MultiplierParams")
+    multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete', single_parent=True)
 
     abilities = relationship('Ability', secondary=races_abilities, lazy='joined')
 
@@ -308,14 +287,14 @@ class Ability(Base):
     ability_type = relationship('AbilityType')
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'), nullable=True)
-    summand_params = relationship("SummandParams")
+    summand_params = relationship("SummandParams", cascade='all, delete')
 
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'), nullable=True)
-    multiplier_params = relationship("MultiplierParams")
+    multiplier_params = relationship("MultiplierParams", cascade='all, delete')
 
     chance = Column(Float, default=1)
     summoned_character_id = Column(Integer, ForeignKey('characters.id'), nullable=True)
-    summoned_character = relationship('Character', lazy='joined')
+    summoned_character = relationship('Character')
     summoned_quantity = Column(Integer, default=0)
 
     trigger_condition = Column(Enum(TriggerCondition), nullable=False)
