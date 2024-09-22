@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 PG_URL = os.getenv('PG_URL')
@@ -31,3 +32,31 @@ archetypes = [{"title": "Strength"},
 character_types = [{'name': 'main'},
                    {'name': 'collection'},
                    {'name': 'secondary'}]
+
+permissions_for_clan = {
+    "Head": ['invite_users',
+             'kick_users',
+             'edit_clan_settings',
+             'assigning_roles',
+             'delete_clan',
+             'access_to_god_chat',
+             'bank_access',
+             'start_clan_wars',
+             'moderate_chat'],
+    'Deputy': ['invite_users',
+               'kick_users',
+               'assigning_roles_to_elder',
+               'delete_clan',
+               'access_to_god_chat',
+               'bank_access',
+               'start_clan_wars',
+               'moderate_chat'],
+    'Elder': ['invite_users',
+              'kick_users',
+              'moderate_chat',
+              'assigning_roles_to_officer'],
+    'Officer': ['invite_users'],
+    'Participant': []
+}
+
+
