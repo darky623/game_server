@@ -47,7 +47,7 @@ class SubscribeToClan(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     clan_id = Column(Integer, ForeignKey('clans.id'))
     role = Column(Enum(
-        'Глава', 'Заместитель', 'Старейшина', 'Офицер', 'Участник',
+        'Head', 'Deputy', 'Elder', 'Officer', 'Participant',
         name='role_enum',
         native_enum=False
     ), default='Участник')
