@@ -40,6 +40,16 @@ async def get_all_allowed_chats(user: User = Depends(get_current_user)):
     }
 
 
+@router.delete('/{chat_id}/{message_id}')
+async def delete_message(chat_id: int, message_id: int, user: User = Depends(get_current_user)):
+    try:
+        await chat_service.delete_message(chat_id, message_id, user)
+        return {'message': 'Message deleted'}
+
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+
 # @router.get('/{chat_id}')
 # async def get_chat_info(chat_id: int,
 #                         user: User = Depends(get_current_user)):
