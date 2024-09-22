@@ -6,7 +6,7 @@ from chat.chat_service import ChatService
 from database import AsyncSessionFactory
 from typing import Optional
 
-router = APIRouter(prefix='/chat')
+router = APIRouter(prefix='/chat', tags=['chat'])
 chat_service = ChatService(AsyncSessionFactory)
 
 
