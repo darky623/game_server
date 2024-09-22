@@ -16,11 +16,11 @@ class ClanSchemaBase(BaseModel):
 
 
 class SubscribeToClanSchemaBase(BaseModel):
-    role: str = Field(..., enum=['Глава',
-                                 'Заместитель',
-                                 'Старейшина',
-                                 'Офицер',
-                                 'Участник'])
+    role: str = Field(..., enum=['Head',
+                                 'Deputy',
+                                 'Elder',
+                                 'Officer',
+                                 'Participant'])
     status: bool = False
 
 
