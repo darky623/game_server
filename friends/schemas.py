@@ -1,4 +1,7 @@
+from fastapi import Depends
 from pydantic import BaseModel
+
+from auth.user_service import get_current_user
 
 
 class FriendBase(BaseModel):
@@ -17,7 +20,7 @@ class FriendUpdate(FriendBase):
 
 
 class RequestToFriendBase(BaseModel):
-    sender_id: int
+    sender_id: int | None = None
     recipient_id: int
     status: bool = False
 
