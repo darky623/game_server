@@ -44,8 +44,11 @@ async def websocket_authentication(websocket: WebSocket) -> User:
 async def check_auth_token(token: str):
     user = None
     async with AsyncSessionFactory() as db:
-        result = await db.execute(select(AuthSession).where(AuthSession.token == token, AuthSession.status == 'active'))
+        result = await db.execute(select(AuthSession).where(
+            AuthSession.token == token, AuthSession.status == 'active')
+        )
         auth = result.scalars().first()
+        print(auth)
         if auth:
             if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
                 user = auth.user
