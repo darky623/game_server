@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 
 import config
-from models import Clan, SubscribeToClan, RequestToClan
+from .models import Clan, SubscribeToClan, RequestToClan
 from schemas import (
     ClanSchemaCreate,
     ClanSchema,
