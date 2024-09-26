@@ -18,7 +18,7 @@ class User(Base):
     auth_sessions = relationship("AuthSession", back_populates="user", lazy='joined')
     characters = relationship("Character", back_populates="user")
     chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='joined')
-
+    player_progress = relationship("PlayerProgress", back_populates="player", lazy='selectin')
 
     def serialize(self):
         return {

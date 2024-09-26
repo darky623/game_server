@@ -1,9 +1,12 @@
+from fastapi import HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 
+import config
 from auth.models import User
 from chat.schemas import AddChatSchema, ChatSchema
 from chat.models import Message, Chat
+
+from clan.router import clan_service
 
 
 class ChatService:
@@ -70,3 +73,43 @@ class ChatService:
             result = await session.execute(select(Chat).where(Chat.type == 'general'))
             chat = result.scalars().first()
             return chat
+
+    async def delete_message(self, chat_id: int, message_id: int, user: User):
+        chat = await self.get_chat(chat_id)
+
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
+
+        is_clan_chat = chat.type == 'clan'  # Assuming chat type is stored in a type field
+
+        if is_clan_chat:
+            # Check permissions for deleting message in clan chat
+            user_role = await clan_service.get_user_role_in_clan(chat_id, user.id)
+            if 'moderate_chat' not in config.permissions_for_clan.get(user_role, []):
+                message = await self.get_message(chat_id, message_id)
+                if message.user_id != user.id:
+                    raise HTTPException(status_code=403, detail="You are not allowed to delete this message")
+        else:
+            # Check if user is a member of the chat
+            if not await self.check_chat_member(chat_id, user):
+                raise HTTPException(status_code=403, detail="You are not allowed to delete this message")
+
+        await self.execute_delete_message(chat_id, message_id)
+
+    async def execute_delete_message(self, chat_id: int, message_id: int):
+        async with self.session_factory() as session:
+            stmt = select(Message).where(Message.chat_id == chat_id, Message.id == message_id)
+            result = await session.execute(stmt)
+            message = result.scalars().first()
+
+            if not message:
+                raise HTTPException(status_code=404, detail="Message not found")
+
+            await session.delete(message)
+            await session.commit()
+
+    async def get_message(self, chat_id: int, message_id: int):
+        async with self.session_factory() as session:
+            stmt = select(Message).where(Message.chat_id == chat_id, Message.id == message_id)
+            result = await session.execute(stmt)
+            return result.scalars().first()
