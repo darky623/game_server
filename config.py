@@ -2,8 +2,6 @@ import os
 
 db_url = f'postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}'
 
-auth_server = "http://31.129.54.119"
-
 PG_URL = os.getenv("PG_URL")
 PG_USERNAME = os.getenv("POSTGRES_USER")
 PG_PASSWORD = os.getenv("POSTGRES_PASSWORD")
