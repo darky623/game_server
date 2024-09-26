@@ -1,37 +1,30 @@
-from aiohttp_middlewares import cors_middleware
-from routes import routes, engine, create_archetypes
-from models import Base
-from aiohttp import web
-import config
-import ssl
+from fastapi import FastAPI, Depends
+from sqlalchemy import select
+from starlette.middleware.cors import CORSMiddleware
+
+from auth.models import User
+from auth.user_service import get_current_user
+from chat.router import router as chat_router
+from chat.websocket import router as chat_websocket_router
+from database import AsyncSessionFactory
+from game_logic.models import Character, CharacterClass
+from game_logic.router import router as game_logic_router
+
+from schemas import CreateCharacterSchema
+
+app = FastAPI()
 
 
-async def setup():
-    print('Запуск...')
-    create_archetypes()
-    app = web.Application()
-    cors = cors_middleware(
-        allow_all=True,
-        allow_credentials=True,
-        allow_headers=("Content-Type", "Authorization"),
-        allow_methods=("GET", "POST", "OPTIONS"))
-    app.middlewares.append(cors)
-    app.add_routes(routes)
-    app.on_cleanup.append(shutdown)
+app.include_router(chat_router)
 
-    return app
+app.include_router(chat_websocket_router)
+app.include_router(game_logic_router)
 
 
-async def shutdown(app):
-    print('Выключение...')
-
-
-if __name__ == '__main__':
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    context = None
-    if config.webhook_port == 443:
-        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-        context.load_cert_chain(config.webhook_ssl_cert, config.webhook_ssl_priv)
-
-    web.run_app(setup(), host='0.0.0.0', port=config.webhook_port, ssl_context=context)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
