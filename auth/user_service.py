@@ -32,6 +32,7 @@ async def websocket_authentication(websocket: WebSocket) -> User:
     if token and token.startswith("Bearer "):
         token = token[len("Bearer "):]
         user = await get_current_user(token)
+        user.last_login = datetime.now()
         return user
     else:
         raise HTTPException(
@@ -44,8 +45,11 @@ async def websocket_authentication(websocket: WebSocket) -> User:
 async def check_auth_token(token: str):
     user = None
     async with AsyncSessionFactory() as db:
-        result = await db.execute(select(AuthSession).where(AuthSession.token == token, AuthSession.status == 'active'))
+        result = await db.execute(select(AuthSession).where(
+            AuthSession.token == token, AuthSession.status == 'active')
+        )
         auth = result.scalars().first()
+        print(auth)
         if auth:
             if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
                 user = auth.user

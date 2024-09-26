@@ -8,4 +8,6 @@ black~=24.8.0
 
 asyncpg
 uvicorn[standard]
-python-dotenv~=1.0.1
+
+redis~=5.0.8
+typing_extensions~=4.12.2

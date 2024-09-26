@@ -1,8 +1,8 @@
 import os
 
-from dotenv import load_dotenv
+db_url = f'postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}'
 
-load_dotenv()
+auth_server = "http://31.129.54.119"
 
 PG_URL = os.getenv("PG_URL")
 PG_USERNAME = os.getenv("POSTGRES_USER")
@@ -20,14 +20,6 @@ secret_key = os.environ.get("SECRET_KEY")
 
 dt_format = "%d/%m/%Y %H:%M:%S"
 token_lifetime = 3600
-
-webhook_port = os.environ.get("WEBHOOK_PORT")
-webhook_ssl_cert = None
-webhook_ssl_priv = None
-
-archetypes = [{"title": "Strength"}, {"title": "Dexterity"}, {"title": "Intelligence"}]
-
-character_types = [{"name": "main"}, {"name": "collection"}, {"name": "secondary"}]
 
 permissions_for_clan = {
     "Head": [
