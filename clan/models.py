@@ -41,6 +41,9 @@ class Clan(Base):
 
 
 class SubscribeToClan(Base):
+    """Класс для подписок на клан.
+     Подписчики клана имеющие права на приглашение других людей отправляют заявку игроку
+     формируется подписка со статусом False."""
     __tablename__ = 'subscribe_to_clans'
 
     id = Column(Integer, primary_key=True, index=True)
@@ -60,6 +63,8 @@ class SubscribeToClan(Base):
 
 
 class RequestToClan(Base):
+    """Класс для запросов на вступление в клан.
+     Пользователь отправляется запрос на вступление в клан."""
     __tablename__ = 'requests_to_clans'
 
     id = Column(Integer, primary_key=True, index=True)
