@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -33,7 +33,7 @@ class SubscribeToClanSchema(SubscribeToClanSchemaBase):
     id: int
     user_id: int
     clan_id: int
-    date_create: datetime
+    date_create: datetime = None
 
 
 class SubscribeToClanSchemaUpdate(BaseModel):

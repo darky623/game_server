@@ -233,7 +233,7 @@ class ClanService:
             user_id (int): ID пользователя, принимающего приглашение.
 
         Returns:
-            SubscribeToClanSchema: Данные о подтвержденной подписке.
+            JSONResponse: Данные о созданной подписке (приглашении).
 
         Raises:
             HTTPException: Возникает, если приглашение не найдено.
@@ -462,8 +462,8 @@ class ClanService:
                     status_code=403, detail="You are not allowed to confirm requests"
                 )
             # Проверка на факт возможности добавить еще одного участника в клан
-            if self.get_clan_member_limit(clan_id) < self.get_clan_members_count(
-                clan_id
+            if self.get_clan_member_limit(clan_id, session) < self.get_clan_members_count(
+                clan_id, session
             ):
                 raise HTTPException(status_code=403, detail="Clan is full")
             # Подтверждаем запрос
@@ -548,7 +548,7 @@ class ClanService:
                 "Deputy": 2,
                 "Elder": 5,
                 "Officer": 5,
-                "Participant": self.get_clan_member_limit(clan_id),
+                "Participant": self.get_clan_member_limit(clan_id, session),
             }
 
             current_roles_count = await session.execute(
