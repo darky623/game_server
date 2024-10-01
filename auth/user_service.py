@@ -32,7 +32,7 @@ async def websocket_authentication(websocket: WebSocket) -> User:
     token = websocket.headers.get('Authorization')
     if token and token.startswith("Bearer "):
         token = token[len("Bearer "):]
-        user = await get_current_user(token)
+        user = await get_current_user(HTTPAuthorizationCredentials(scheme='Bearer', credentials=token))
         user.last_login = datetime.now()
         return user
     else:
