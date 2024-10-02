@@ -54,10 +54,6 @@ class ChatService:
                 raise ValueError("Chat not found")
 
             message = Message(**message_data)
-            
-            session.add(message)
-            await session.flush()
-            
             chat.messages.append(message)
             await session.commit()
 
