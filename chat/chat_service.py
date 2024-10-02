@@ -54,7 +54,7 @@ class ChatService:
                 raise ValueError("Chat not found")
 
             message = Message(**message_data)
-            await chat.messages.append(message)
+            chat.messages.append(message)
             await session.commit()
 
     async def check_chat_member(self, chat_id: int, user: User) -> bool:
