@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.exc import IntegrityError
 
 import config
@@ -135,24 +135,30 @@ class ClanService:
                 raise HTTPException(status_code=404, detail="Clan not found")
             return db_clan.serialize()
 
-    async def edit_clan(self, clan_id: int, clan: ClanSchemaUpdate):
+    async def edit_clan(self, clan_id: int, clan: ClanSchemaUpdate, current_user_id: int):
         """Редактирует данные клана.
 
         Args:
             clan_id (int): ID клана.
             clan (ClanSchemaUpdate): Новые данные клана.
+            current_user_id (int): ID пользователя, пытающегося отредактировать клан.
 
         Returns:
             ClanSchema: Обновленные данные клана.
 
         Raises:
-            HTTPException: Возникает, если клан не найден.
+            HTTPException: Возникает, если клан не найден или у пользователя нет прав на редактирование.
         """
         async with self.session_factory() as session:
             result = await session.execute(select(Clan).where(Clan.id == clan_id))
             db_clan = result.scalar_one_or_none()
             if not db_clan:
                 raise HTTPException(status_code=404, detail="Clan not found")
+
+            # Проверяем, является ли текущий пользователь главой клана
+            if db_clan.head_id != current_user_id:
+                raise HTTPException(status_code=403, detail="Only the clan head can edit clan data")
+
             for field, value in clan:
                 setattr(db_clan, field, value)
             await session.commit()
@@ -462,8 +468,8 @@ class ClanService:
                     status_code=403, detail="You are not allowed to confirm requests"
                 )
             # Проверка на факт возможности добавить еще одного участника в клан
-            if self.get_clan_member_limit(clan_id) < self.get_clan_members_count(
-                clan_id
+            if self.get_clan_member_limit(clan_id, session) < self.get_clan_members_count(
+                clan_id, session
             ):
                 raise HTTPException(status_code=403, detail="Clan is full")
             # Подтверждаем запрос
@@ -482,10 +488,24 @@ class ClanService:
                 status_code=200, content={"message": "Request confirmed"}
             )
 
-    async def get_public_clans(self):
-        """Возвращает список публичных кланов."""
+    async def get_public_clans(self, skip: int = 0, limit: int = 100):
+        """
+        Возвращает список публичных кланов с пагинацией.
+
+        Args:
+            skip (int): Количество пропускаемых записей.
+            limit (int): Максимальное количество возвращаемых записей.
+
+        Returns:
+            List[Clan]: Список публичных кланов с учетом пагинации.
+        """
         async with self.session_factory() as session:
-            result = await session.execute(select(Clan).where(Clan.is_public == True))
+            result = await session.execute(
+                select(Clan)
+                .where(Clan.is_public == True)
+                .offset(skip)
+                .limit(limit)
+            )
             db_clans = result.scalars().all()
             return db_clans
 
@@ -548,7 +568,7 @@ class ClanService:
                 "Deputy": 2,
                 "Elder": 5,
                 "Officer": 5,
-                "Participant": self.get_clan_member_limit(clan_id),
+                "Participant": self.get_clan_member_limit(clan_id, session),
             }
 
             current_roles_count = await session.execute(
@@ -601,3 +621,39 @@ class ClanService:
             )
             db_members = result.scalars().all()
             return db_members
+
+    async def delete_clan(self, clan_id: int, user_id: int):
+        """Удаляет клан и все связанные с ним данные."""
+        async with self.session_factory() as session:
+            async with session.begin():
+                # Проверяем, является ли пользователь главой клана
+                result = await session.execute(
+                    select(SubscribeToClan).where(
+                        SubscribeToClan.clan_id == clan_id,
+                        SubscribeToClan.user_id == user_id,
+                        SubscribeToClan.role == "Head"
+                    )
+                )
+                clan_head = result.scalar_one_or_none()
+                if not clan_head:
+                    raise HTTPException(status_code=403, detail="Only clan head can delete the clan")
+
+                # Удаляем все связи между кланом и его пользователями
+                await session.execute(
+                    delete(SubscribeToClan).where(SubscribeToClan.clan_id == clan_id)
+                )
+
+                # Удаляем все отправленные заявки от пользователей
+                await session.execute(
+                    delete(RequestToClan).where(RequestToClan.clan_id == clan_id)
+                )
+
+                # Удаляем сам клан
+                await session.execute(
+                    delete(Clan).where(Clan.id == clan_id)
+                )
+
+                logger.info(f"Clan {clan_id} and all related data deleted by user {user_id}")
+
+        return {"detail": "Clan and all related data delete"}
+
