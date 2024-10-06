@@ -67,14 +67,12 @@ class ClanSchemaCreate(ClanSchemaBase):
 
 class ClanSchema(ClanSchemaBase):
     id: int
-    name: str = Field(..., min_length=3, max_length=20)
-    short_name: Optional[str] = None
-    avatar: Optional[str] = None
-    description: str = Field(..., max_length=200)
-    created_at: datetime
     chat: Optional[ChatSchema] = None
     subscribers: Optional[list[SubscribeToClanSchema]] = None
     requests: Optional[list[RequestToClanSchema]] = None
+
+    class Config:
+        from_attributes = True
 
 
 class ClanSchemaUpdate(BaseModel):
