@@ -1,15 +1,14 @@
+from fastapi.openapi.models import Response
 from sqlalchemy import select, or_, delete, and_
 from sqlalchemy.exc import SQLAlchemyError
 
 from auth.models import User
+from chat.models import Chat
 
 from chat.router import chat_service
+from chat.schemas import AddChatSchema
 from friends.models import RequestToFriend, Friend
-from friends.schemas import (
-    RequestToFriendCreate,
-    RequestToFriendBase,
-    RequestToFriendDelete,
-)
+from friends.schemas import RequestToFriendBase, RequestToFriendUpdate
 
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
@@ -22,19 +21,22 @@ class FriendService:
     @staticmethod
     async def _get_request_by_id(request_id: int, session):
         """Вспомогательная функция для поиска запроса по ID"""
-        result = await session.execute(
-            select(RequestToFriend).where(RequestToFriend.id == request_id)
-        )
-        request = result.scalars().first()
-        return request
+        try:
+            result = await session.execute(
+                select(RequestToFriend).where(RequestToFriend.id == request_id)
+            )
+            request = result.scalars().first()
+            return request
+        except SQLAlchemyError:
+            return None
 
     @staticmethod
-    async def _check_existing_friendship(request: RequestToFriendBase, session):
+    async def _check_existing_friendship(friend_id: int, user_id: int, session):
         """Проверка на существующую дружбу"""
         result = await session.execute(
             select(Friend).where(
-                Friend.owner_id == request.sender_id,
-                Friend.friend_id == request.recipient_id,
+                Friend.owner_id == user_id,
+                Friend.friend_id == friend_id,
             )
         )
         existing_friend = result.scalars().first()
@@ -42,79 +44,117 @@ class FriendService:
             return True
         return False
 
-    async def send_friend_request(self, request: RequestToFriendCreate) -> JSONResponse:
+    async def send_friend_request(self, friend_id: int, user_id: int) -> JSONResponse:
         """Отправить заявку в друзья"""
-        async with self.session_factory() as session:
-            # Проверка, что отправитель и получатель не являются одним и тем же пользователем
-            if request.sender_id == request.recipient_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Невозможно отправить запрос самому себе",
-                )
+        try:
+            async with self.session_factory() as session:
+                # Проверка, что отправитель и получатель не являются одним и тем же пользователем
+                if user_id == friend_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Невозможно отправить запрос самому себе",
+                    )
 
-            # Проверка на существующую дружбу
-            if await self._check_existing_friendship(request, session):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Этот пользователь уже является Вашим другом",
-                )
+                # Проверка на существующую дружбу
+                if await self._check_existing_friendship(user_id, friend_id, session):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Этот пользователь уже является Вашим другом",
+                    )
 
-            # Проверка на существование заявки
-            existing_request = await self._get_request_by_id(
-                request, session
+                # Проверка на существование заявки
+                request_id = await session.execute(
+                    select(RequestToFriend.id).where(
+                        and_(
+                            RequestToFriend.sender_id == user_id,
+                            RequestToFriend.recipient_id == friend_id,
+                        )
+                    )
+                )
+                existing_request = await self._get_request_by_id(request_id, session)
+                if existing_request:
+                    # Если заявка уже существует, возвращаем сообщение, что заявка уже отправлена
+                    raise HTTPException(
+                        detail="Заявка уже отправлена",
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Если заявки не существует, создаем новую заявку
+                new_request = RequestToFriend(sender_id=user_id, recipient_id=friend_id)
+                session.add(new_request)
+                await session.commit()
+                await session.refresh(new_request)
+
+            return JSONResponse(
+                content={"message": "Заявка в друзья отправлена"},
+                status_code=status.HTTP_201_CREATED,
             )
-            if existing_request:
-                # Если заявка уже существует, возвращаем сообщение, что заявка уже отправлена
-                raise HTTPException(
-                    detail="Заявка уже отправлена",
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Если заявки не существует, создаем новую заявку
-            new_request = RequestToFriend(**request.dict())
-            session.add(new_request)
-            await session.commit()
-            await session.refresh(new_request)
-        return JSONResponse(
-            content={"message": "Заявка в друзья отправлена"},
-            status_code=status.HTTP_201_CREATED,
-        )
+        except SQLAlchemyError as e:
+            raise e
 
     async def accept_friend_request(
-        self, request_id: int, user_id: int
+            self, request: RequestToFriendUpdate, user_id: int
     ) -> JSONResponse:
         """Принять заявку в друзья"""
-        async with self.session_factory() as session:
-            request = await self._get_request_by_id(request_id, session)
-            if request.recipient_id != user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="У вас нет прав для принятия этой заявки",
+        try:
+            async with self.session_factory() as session:
+                print(request.id, user_id, "----------------------------------------")
+                result = await session.execute(
+                    select(RequestToFriend).where(
+                        RequestToFriend.id == request.id,
+                        RequestToFriend.recipient_id == user_id,
+                        RequestToFriend.status == False
+                    )
                 )
-            if request.status:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Заявка уже принята"
+                request = result.scalars().first()
+                if request is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND, detail="Запрос не найден"
+                    )
+                elif request.recipient_id != user_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="У вас нет прав для принятия этой заявки",
+                    )
+                else:
+                    request.status = True
+
+                new_friendship = Friend(
+                    owner_id=user_id, friend_id=request.sender_id
                 )
+                session.add(new_friendship)
+                await session.delete(request)
+                # # Создаем приватный чат между пользователями
+                # new_chat = await chat_service.create_chat(
+                #     AddChatSchema(
+                #         type="private",
+                #         user_ids=[user_id, friend_id],
+                #     )
+                # )
+                #
+                # if new_chat is None:
+                #     raise HTTPException(
+                #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                #         detail="Не удалось создать чат",
+                #     )
+                # chat_service.add_chat(
+                #     AddChatSchema(
+                #         name="chat",
+                #         users=[user_id, friend_id],
+                #         chat_id=new_chat.id)
+                # )
+                #
+                # session.add(new_chat)
 
-            request.status = True
-            new_friendship = Friend(
-                owner_id=request.sender_id, friend_id=request.recipient_id
+                await session.commit()
+            return JSONResponse(
+                content={"message": "Заявка принята"}, status_code=status.HTTP_200_OK
             )
-            session.add(new_friendship)
 
-            # Создаем приватный чат между пользователями
-            new_chat = await chat_service.create_chat(
-                type="private", user_ids=[user_id, request.sender_id]
-            )
-            if new_chat:
-                session.add(new_chat)
+        except SQLAlchemyError as e:
+            raise e
 
-            await session.commit()
-        return JSONResponse(
-            content={"message": "Заявка принята"}, status_code=status.HTTP_200_OK
-        )
-
-    async def cancel_friend_request(self, request_id: int) -> JSONResponse:
+    async def cancel_friend_request(self, request_id: int, user_id: int) -> JSONResponse:
         """Отменить отправленную заявку в друзья"""
         async with self.session_factory() as session:
             request = await self._get_request_by_id(request_id, session)
@@ -127,6 +167,11 @@ class FriendService:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail="Заявка уже принята"
                 )
+            if request.sender_id != user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="У вас нет прав для отмены этой заявки",
+                )
             await session.delete(request)
             await session.commit()
         return JSONResponse(
@@ -134,11 +179,10 @@ class FriendService:
             status_code=status.HTTP_200_OK,
         )
 
-    async def remove_friend(self, friend_id: int, user_id: int) -> JSONResponse:
+    async def remove_friend(self, friend_id: int, user_id: int) -> Response:
         """Удалить из друзей"""
-        request = RequestToFriendDelete(sender_id=user_id, recipient_id=friend_id)
         async with self.session_factory() as session:
-            if self._check_existing_friendship(request, session):
+            if self._check_existing_friendship(friend_id, user_id, session):
                 try:
                     # Удаляем запись из таблицы Friend
                     await session.execute(
@@ -172,10 +216,8 @@ class FriendService:
                         )
                     )
                     await session.commit()
-                    return JSONResponse(
-                        content={"message": "Друг удален"},
-                        status_code=status.HTTP_204_NO_CONTENT,
-                    )
+                    return Response(status_code=204)
+
                 except SQLAlchemyError as e:
                     session.rollback()
                     raise HTTPException(
@@ -195,7 +237,7 @@ class FriendService:
                 .filter(or_(User.id == Friend.owner_id, User.id == Friend.friend_id))
             )
 
-            friends = result.scalars().all()
+            friends = result.scalars().unique().all()
 
             # Убираем из списка самого пользователя
             friends = [friend for friend in friends if friend.id != user_id]
@@ -203,14 +245,28 @@ class FriendService:
 
             return friends_list
 
-    async def get_incoming_friend_requests(
-        self, user_id: int
+    async def get_coming_friend_requests(
+            self, user_id: int
     ) -> list[RequestToFriendBase]:
-        """Получить входящие заявки в друзья"""
+        """Получить исходящие заявки в друзья"""
         async with self.session_factory() as session:
             result = await session.execute(
                 select(RequestToFriend).where(
                     RequestToFriend.recipient_id == user_id,
+                    RequestToFriend.status
+                    == False,  # Учитываем только непроверенные заявки
+                )
+            )
+            incoming_requests = result.scalars().all()
+
+            return incoming_requests
+
+    async def get_all_incoming_requests(self, user_id: int) -> list[RequestToFriendBase]:
+        """Получить входящие заявки в друзья"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(RequestToFriend).where(
+                    RequestToFriend.sender_id == user_id,
                     RequestToFriend.status
                     == False,  # Учитываем только непроверенные заявки
                 )

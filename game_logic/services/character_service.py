@@ -1,5 +1,4 @@
 from fastapi import HTTPException
-from requests import session
 from sqlalchemy import select, delete
 
 from game_logic.models import Character

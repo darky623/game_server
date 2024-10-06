@@ -29,7 +29,7 @@ async def create_clan(clan: ClanSchemaCreate,
         Raises:
             HTTPException: Если возникла ошибка при создании клана.
         """
-    return await clan_service.create_clan(clan, user)
+    return await clan_service.create_clan(clan, user.id)
 
 
 @router.get('/{clan_id}', response_model=ClanSchema)
@@ -51,7 +51,7 @@ async def get_clan(
     return await clan_service.get_clan_by_id(clan_id)
 
 
-@router.get('/', response_model=List[ClanSchema])
+@router.get('', response_model=List[ClanSchema])
 async def list_clans(
         skip: int = 0,
         limit: int = 100
@@ -110,8 +110,8 @@ async def delete_clan(
     await clan_service.delete_clan(clan_id, current_user)
 
 
-@router.get('/{clan_id}/members', response_model=List[User])
-async def get_clan_members(clan_id: int):
+@router.get('/{clan_id}/members', response_model=List[SubscribeToClanSchema])
+async def get_clan_members(clan_id: int) -> List[User]:
     """
     Получение списка членов клана.
 
@@ -219,7 +219,7 @@ async def leave_clan(clan_id, user: User = Depends(get_current_user)):
     await clan_service.leave_clan(clan_id, user.id)
 
 
-@router.post('{clan_id}/kick', status_code=status.HTTP_204_NO_CONTENT)
+@router.post('{clan_id}/{kick_user_id}/kick', status_code=status.HTTP_204_NO_CONTENT)
 async def kick_from_clan(clan_id: int, kick_user_id: int, user: User = Depends(get_current_user)):
     """
     Текущий пользователь Исключает подписчика из клана.

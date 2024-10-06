@@ -20,6 +20,7 @@ class FriendUpdate(FriendBase):
 
 
 class RequestToFriendBase(BaseModel):
+
     sender_id: int | None = None
     recipient_id: int
     status: bool = False
@@ -30,7 +31,7 @@ class RequestToFriendCreate(RequestToFriendBase):
 
 
 class RequestToFriendUpdate(RequestToFriendBase):
-    pass
+    id: int
 
 
 class RequestToFriendDelete(RequestToFriendBase):

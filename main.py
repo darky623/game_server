@@ -12,6 +12,7 @@ from friends.router import router as friends_router
 from database import AsyncSessionFactory
 from game_logic.models import Character, CharacterClass
 from game_logic.router import router as game_logic_router
+from clan.router import router as clan_router
 
 from schemas import CreateCharacterSchema
 
@@ -24,6 +25,7 @@ app.include_router(biome_router)
 app.include_router(player_progress_router)
 app.include_router(friends_router)
 app.include_router(game_logic_router)
+app.include_router(clan_router)
 
 
 app.add_middleware(

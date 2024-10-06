@@ -3,10 +3,11 @@ import logging
 from fastapi import HTTPException
 from sqlalchemy import select, func, delete
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 import config
-from models import Clan, SubscribeToClan, RequestToClan
-from schemas import (
+from .models import Clan, SubscribeToClan, RequestToClan
+from .schemas import (
     ClanSchemaCreate,
     ClanSchema,
     SubscribeToClanSchema,
@@ -83,6 +84,7 @@ class ClanService:
             clan (ClanSchemaCreate): Данные для создания клана.
             user_id (int): ID пользователя, создающего клан.
 
+
         Returns:
             ClanSchema: Данные созданного клана.
 
@@ -91,21 +93,31 @@ class ClanService:
         """
         async with self.session_factory() as session:
             try:
-                db_clan = Clan(**clan.dict())
-                db_clan.user_id = user_id
-                session.add(db_clan)
-                await session.commit()
-                await session.refresh(db_clan)
-
-                # Создаем подписку для создателя клана с ролью "Глава"
-                db_subscribe = SubscribeToClan(
-                    user_id=user_id, clan_id=db_clan.id, role="Глава", status=True
+                # Проверяем что у данного пользователя нет другого клана
+                result = await session.execute(
+                    select(SubscribeToClan).where(SubscribeToClan.user_id == user_id)
                 )
-                session.add(db_subscribe)
+                db_clan = result.scalar_one_or_none()
+                if db_clan:
+                    raise HTTPException(
+                        status_code=400, detail="User already has a clan"
+                    )
+
+                # Создаем клан
+                new_clan = Clan(**clan.dict())
+                # Создаем подписку для создателя клана с ролью "Глава"
+                session.add(new_clan)
                 await session.commit()
-                await session.refresh(db_subscribe)
-                logger.info(f"Clan {db_clan.name} created by user {user_id}")
-                return JSONResponse(status_code=201, content=db_clan.serialize())
+                await session.refresh(new_clan)
+                new_subscribe = SubscribeToClan(
+                    user_id=user_id, clan_id=new_clan.id, role="Head", status=True
+                )
+                session.add(new_subscribe)
+                await session.commit()
+                await session.refresh(new_subscribe)
+
+                logger.info(f"Clan {new_clan.name} created by user {user_id}")
+                return JSONResponse(status_code=201, content=new_clan.serialize())
 
             except IntegrityError as e:
                 # Обработка исключения IntegrityError, возникающего при нарушении уникальности
@@ -206,7 +218,7 @@ class ClanService:
         async with self.session_factory() as session:
             # Проверка на факт возможности добавить еще одного участника в клан
             if self.get_clan_member_limit(
-                clan_id, session
+                    clan_id, session
             ) < self.get_clan_members_count(clan_id, session):
                 raise HTTPException(status_code=403, detail="Clan is full")
 
@@ -267,7 +279,7 @@ class ClanService:
 
                 # Проверка на факт возможности добавить еще одного участника в клан
                 if self.get_clan_member_limit(
-                    clan_id, session
+                        clan_id, session
                 ) < self.get_clan_members_count(clan_id, session):
                     raise HTTPException(
                         status_code=403, detail="Sorry, this clan is full"
@@ -469,7 +481,7 @@ class ClanService:
                 )
             # Проверка на факт возможности добавить еще одного участника в клан
             if self.get_clan_member_limit(clan_id, session) < self.get_clan_members_count(
-                clan_id, session
+                    clan_id, session
             ):
                 raise HTTPException(status_code=403, detail="Clan is full")
             # Подтверждаем запрос
@@ -502,15 +514,16 @@ class ClanService:
         async with self.session_factory() as session:
             result = await session.execute(
                 select(Clan)
+                .options(selectinload(Clan.chat), selectinload(Clan.subscribers))
                 .where(Clan.is_public == True)
                 .offset(skip)
                 .limit(limit)
             )
-            db_clans = result.scalars().all()
-            return db_clans
+            clans = result.scalars().all()
+            return [ClanSchema.from_orm(clan) for clan in clans]
 
     async def change_member_role(
-        self, clan_id: int, user_id: int, new_role: str, current_user_id: int
+            self, clan_id: int, user_id: int, new_role: str, current_user_id: int
     ):
         """Изменяет роль члена клана.
 
@@ -656,4 +669,3 @@ class ClanService:
                 logger.info(f"Clan {clan_id} and all related data deleted by user {user_id}")
 
         return {"detail": "Clan and all related data delete"}
-
