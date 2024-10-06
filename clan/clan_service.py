@@ -6,8 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 import config
-from .models import Clan, SubscribeToClan, RequestToClan
-from .schemas import (
+
+from clan.models import Clan, SubscribeToClan, RequestToClan
+from clan.schemas import (
     ClanSchemaCreate,
     ClanSchema,
     SubscribeToClanSchema,
@@ -251,7 +252,7 @@ class ClanService:
             user_id (int): ID пользователя, принимающего приглашение.
 
         Returns:
-            SubscribeToClanSchema: Данные о подтвержденной подписке.
+            JSONResponse: Данные о созданной подписке (приглашении).
 
         Raises:
             HTTPException: Возникает, если приглашение не найдено.
@@ -480,8 +481,9 @@ class ClanService:
                     status_code=403, detail="You are not allowed to confirm requests"
                 )
             # Проверка на факт возможности добавить еще одного участника в клан
-            if self.get_clan_member_limit(clan_id, session) < self.get_clan_members_count(
-                    clan_id, session
+            if self.get_clan_member_limit(
+              clan_id, session) < self.get_clan_members_count(
+              clan_id, session
             ):
                 raise HTTPException(status_code=403, detail="Clan is full")
             # Подтверждаем запрос

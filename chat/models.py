@@ -19,7 +19,7 @@ class Chat(Base):
 
     type = Column(String)
     users = relationship('User', secondary=users_chats, back_populates='chats', lazy='joined')
-    messages = relationship('Message', back_populates='chat')
+    messages = relationship('Message', back_populates='chat', lazy='joined')
 
 
 class Message(Base):
