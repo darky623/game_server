@@ -23,10 +23,13 @@ class Clan(Base):
     chat_id = Column(Integer, ForeignKey('chats.id'))
     chat = relationship(Chat, backref='clan', uselist=False)
 
+    # Subscribers
+    subscribers_id = Column(Integer, ForeignKey('users.id'))
     subscribers = relationship(
         "SubscribeToClan",
         back_populates="clan",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        viewonly=True
     )
 
     def serialize(self):
@@ -59,7 +62,7 @@ class SubscribeToClan(Base):
 
     # Relationships
     user = relationship(User, backref='subscribe_to_clans', uselist=False)
-    clan = relationship(Clan, backref='subscribe_to_clans')
+    clan = relationship(Clan, back_populates='subscribers')
 
 
 class RequestToClan(Base):
@@ -76,3 +79,12 @@ class RequestToClan(Base):
     # Relationships
     user = relationship(User, backref='requests_to_clans', uselist=False)
     clan = relationship(Clan, backref='requests_to_clans')
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "clan_id": self.clan_id,
+            "status": self.status,
+            "date_create": self.date_create
+        }

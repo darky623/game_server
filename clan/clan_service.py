@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 from fastapi import HTTPException
 from sqlalchemy import select, func, delete
@@ -68,15 +69,14 @@ class ClanService:
         Returns:
             int: Текущее количество членов клана.
         """
-
         result = await session.execute(
-            select(SubscribeToClan).where(SubscribeToClan.clan_id == clan_id)
+            select(func.count()).select_from(SubscribeToClan).where(SubscribeToClan.clan_id == clan_id)
         )
-        db_clan_members = result.scalar().count()
-        if not db_clan_members:
+        db_clan_members_count = result.scalar()
+        if not db_clan_members_count:
             raise HTTPException(status_code=404, detail="Clan not found")
 
-        return db_clan_members
+        return db_clan_members_count
 
     async def create_clan(self, clan: ClanSchemaCreate, user_id: int):
         """Создает новый клан.
@@ -148,7 +148,9 @@ class ClanService:
                 raise HTTPException(status_code=404, detail="Clan not found")
             return db_clan.serialize()
 
-    async def edit_clan(self, clan_id: int, clan: ClanSchemaUpdate, current_user_id: int):
+    async def edit_clan(
+        self, clan_id: int, clan: ClanSchemaUpdate, current_user_id: int
+    ):
         """Редактирует данные клана.
 
         Args:
@@ -157,26 +159,29 @@ class ClanService:
             current_user_id (int): ID пользователя, пытающегося отредактировать клан.
 
         Returns:
-            ClanSchema: Обновленные данные клана.
+            ClanSchemaUpdate: Обновленные данные клана.
 
         Raises:
             HTTPException: Возникает, если клан не найден или у пользователя нет прав на редактирование.
         """
         async with self.session_factory() as session:
+            # Проверяем, есть ли у текущей роли пользователя возможность менять настройки клана
+            user_role = await self.get_user_role_in_clan(clan_id, current_user_id)
+
+            if "edit_clan_settings" not in config.permissions_for_clan.get(user_role):
+                raise HTTPException(status_code=403, detail="You are not allowed to edit clan settings")
+
             result = await session.execute(select(Clan).where(Clan.id == clan_id))
             db_clan = result.scalar_one_or_none()
             if not db_clan:
                 raise HTTPException(status_code=404, detail="Clan not found")
 
-            # Проверяем, является ли текущий пользователь главой клана
-            if db_clan.head_id != current_user_id:
-                raise HTTPException(status_code=403, detail="Only the clan head can edit clan data")
-
             for field, value in clan:
                 setattr(db_clan, field, value)
             await session.commit()
-            await session.refresh(db_clan)
-            return db_clan.serialize()
+            await session.refresh(db_clan, attribute_names=['subscribers', 'chat'])
+
+            return ClanSchema.from_orm(db_clan)
 
     async def get_user_role_in_clan(self, clan_id: int, user_id: int):
         """Получает роль пользователя в клане.
@@ -212,15 +217,16 @@ class ClanService:
                 - Возникает, если клан переполнен.
         """
         user_role = await self.get_user_role_in_clan(clan_id, user_id)
+
         if "invite_users" not in config.permissions_for_clan.get(user_role):
             raise HTTPException(
                 status_code=403, detail="You are not allowed to invite users"
             )
         async with self.session_factory() as session:
             # Проверка на факт возможности добавить еще одного участника в клан
-            if self.get_clan_member_limit(
-                    clan_id, session
-            ) < self.get_clan_members_count(clan_id, session):
+            if await self.get_clan_member_limit(
+                clan_id, session
+            ) < await self.get_clan_members_count(clan_id, session):
                 raise HTTPException(status_code=403, detail="Clan is full")
 
             new_subscription = SubscribeToClan(
@@ -242,9 +248,11 @@ class ClanService:
             logger.info(
                 f"User {user_id} sent invitation to {invited_user_id} to clan {clan_id}"
             )
-            return JSONResponse(status_code=201, content=new_subscription.serialize())
+            created_subscription = SubscribeToClanSchema.from_orm(new_subscription)
 
-    async def accept_invite(self, clan_id: int, user_id: int):
+            return created_subscription
+
+    async def accept_invite(self, clan_id: int, user_id: int) -> SubscribeToClanSchema:
         """Принимает приглашение в клан.
 
         Args:
@@ -252,7 +260,7 @@ class ClanService:
             user_id (int): ID пользователя, принимающего приглашение.
 
         Returns:
-            JSONResponse: Данные о созданной подписке (приглашении).
+            SubscribeToClanSchema: Данные о созданной подписке (приглашении).
 
         Raises:
             HTTPException: Возникает, если приглашение не найдено.
@@ -279,9 +287,9 @@ class ClanService:
                     raise HTTPException(status_code=404, detail="Invitation not found")
 
                 # Проверка на факт возможности добавить еще одного участника в клан
-                if self.get_clan_member_limit(
-                        clan_id, session
-                ) < self.get_clan_members_count(clan_id, session):
+                if await self.get_clan_member_limit(
+                    clan_id, session
+                ) < await self.get_clan_members_count(clan_id, session):
                     raise HTTPException(
                         status_code=403, detail="Sorry, this clan is full"
                     )
@@ -295,7 +303,8 @@ class ClanService:
                 logging.info(
                     f"Invitation accepted: clan_id={clan_id}, user_id={user_id}"
                 )
-                return JSONResponse(status_code=200, content=db_subscribe.serialize())
+                subscribe = SubscribeToClanSchema.from_orm(db_subscribe)
+                return subscribe
 
             except HTTPException as e:
                 logging.error(f"Error while accepting invitation: {e}")
@@ -309,8 +318,7 @@ class ClanService:
             user_id (int): ID пользователя, отклоняющего приглашение.
 
         Returns:
-            JsonResponse: Сообщение об отклонении приглашения.
-
+            JSONResponse: Сообщение об отклонении приглашения.
         Raises:
             HTTPException: Возникает, если приглашение не найдено.
         """
@@ -432,20 +440,38 @@ class ClanService:
             result = await session.execute(
                 select(Clan).where(Clan.id == clan_id, Clan.is_public == True)
             )
-        db_clan = result.scalar_one_or_none()
-        if not db_clan:
-            logger.warning(
-                f"Clan not found: {clan_id}, when user: {user_id} wanna join"
+            db_clan = result.scalar_one_or_none()
+            if not db_clan:
+                logger.warning(
+                    f"Clan not found: {clan_id}, when user: {user_id} wanna join"
+                )
+                raise HTTPException(status_code=404, detail="Clan not found")
+
+            if db_clan.is_private:
+                logger.warning(f"Clan is private: {clan_id}, when user: {user_id}")
+                raise HTTPException(status_code=404, detail="Clan is private")
+
+            # Проверяем наличие запроса
+            result_existing = await session.execute(
+                select(RequestToClan).where(
+                    RequestToClan.clan_id == clan_id,
+                    RequestToClan.user_id == user_id,
+                )
             )
-            raise HTTPException(status_code=404, detail="Clan not found")
 
-        db_request = RequestToClan(user_id=user_id, clan_id=clan_id)
-        session.add(db_request)
-        await session.commit()
-        await session.refresh(db_request)
+            if result_existing.scalar_one_or_none():
+                logger.warning(
+                    f"Request already exist: {clan_id}, when user: {user_id}"
+                )
+                raise HTTPException(status_code=409, detail="Request already exist")
+            # Добавляем запрос
+            db_request = RequestToClan(user_id=user_id, clan_id=clan_id)
+            session.add(db_request)
+            await session.commit()
+            await session.refresh(db_request)
 
-        logger.info(f"User: {user_id} send request to clan: {clan_id}")
-        return JSONResponse(status_code=201, content=db_request)
+            logger.info(f"User: {user_id} send request to clan: {clan_id}")
+            return JSONResponse(status_code=201, content={"detail": "Request send"})
 
     async def confirm_request(self, clan_id: int, accept_user_id: int, user_id: int):
         """Подтверждает запрос на вступление в клан.
@@ -470,7 +496,7 @@ class ClanService:
                     RequestToClan.status == False,
                 )
             )
-            db_request = result.scalar_one_or_none()
+            db_request = result.scalars().first()
             if not db_request:
                 raise HTTPException(status_code=404, detail="Request not found")
 
@@ -481,10 +507,9 @@ class ClanService:
                     status_code=403, detail="You are not allowed to confirm requests"
                 )
             # Проверка на факт возможности добавить еще одного участника в клан
-            if self.get_clan_member_limit(
-              clan_id, session) < self.get_clan_members_count(
-              clan_id, session
-            ):
+            if await self.get_clan_member_limit(
+                clan_id, session
+            ) < await self.get_clan_members_count(clan_id, session):
                 raise HTTPException(status_code=403, detail="Clan is full")
             # Подтверждаем запрос
             db_request.status = True
@@ -513,6 +538,7 @@ class ClanService:
         Returns:
             List[Clan]: Список публичных кланов с учетом пагинации.
         """
+
         async with self.session_factory() as session:
             result = await session.execute(
                 select(Clan)
@@ -521,11 +547,25 @@ class ClanService:
                 .offset(skip)
                 .limit(limit)
             )
+
             clans = result.scalars().all()
-            return [ClanSchema.from_orm(clan) for clan in clans]
+            for clan in clans:
+                logger.debug(f"Clan ID: {clan.id}, Subscribers: {clan.subscribers}")
+            return [
+                ClanSchema(
+                    id=clan.id,
+                    name=clan.name,
+                    short_name=clan.short_name,
+                    avatar=clan.avatar,
+                    subscribers=convert_subscribers(
+                        clan.subscribers
+                    ),  # Применение метода преобразования
+                )
+                for clan in clans
+            ]
 
     async def change_member_role(
-            self, clan_id: int, user_id: int, new_role: str, current_user_id: int
+        self, clan_id: int, user_id: int, new_role: str, current_user_id: int
     ):
         """Изменяет роль члена клана.
 
@@ -547,7 +587,7 @@ class ClanService:
                 - Возникает, если достигнут лимит на количество пользователей с определенной ролью.
                 - Возникает, если пытаются назначить лидером не того пользователя.
         """
-        async with self.session_factory() as session:
+        async with (self.session_factory() as session):
             result = await session.execute(select(Clan).where(Clan.id == clan_id))
             clan = result.scalars().first()
             if not clan:
@@ -560,10 +600,10 @@ class ClanService:
 
             # Проверка прав для назначения ролей в зависимости от текущей роли пользователя
             allowed_roles_for_roles = {
-                "Head": ["Head", "Deputy", "Elder", "Officer"],
-                "Deputy": ["Elder", "Officer"],
-                "Elder": [],
-                "Officer": [],
+                "Head": ["Head", "Deputy", "Elder", "Officer", "Participant"],
+                "Deputy": ["Elder", "Officer", "Participant"],
+                "Elder": ["Participant"],
+                "Officer": ["Participant"],
                 "Participant": [],
             }
 
@@ -583,7 +623,7 @@ class ClanService:
                 "Deputy": 2,
                 "Elder": 5,
                 "Officer": 5,
-                "Participant": self.get_clan_member_limit(clan_id, session),
+                "Participant": await self.get_clan_member_limit(clan_id, session),
             }
 
             current_roles_count = await session.execute(
@@ -593,16 +633,18 @@ class ClanService:
             )
             current_roles_count = dict(current_roles_count.all())
 
-            if current_roles_count.get(new_role, 0) >= role_limits[new_role]:
-                raise HTTPException(
-                    status_code=400, detail=f"Role {new_role} limit reached"
-                )
+            if new_role != "Head":
+                if current_roles_count.get(new_role, 0) >= role_limits[new_role]:
+                    raise HTTPException(
+                        status_code=400, detail=f"Role {new_role} limit reached"
+                    )
 
             # Получаем пользователя, которого нужно изменить
             result = await session.execute(
                 select(SubscribeToClan)
                 .where(SubscribeToClan.clan_id == clan_id)
                 .where(SubscribeToClan.user_id == user_id)
+                .where(SubscribeToClan.role == "Deputy")
             )
             member_subscription = result.scalar_one_or_none()
 
@@ -623,8 +665,10 @@ class ClanService:
                 member_subscription.role = new_role
 
             await session.commit()
-            logger.info(f"Member: {current_user_id} changed role to {new_role} to user: {user_id} in clan: {clan_id}")
-            return {"detail": "Member role updated successfully"}
+            logger.info(
+                f"Member: {current_user_id} changed role to {new_role} to user: {user_id} in clan: {clan_id}"
+            )
+            return SubscribeToClanSchema.from_orm(member_subscription)
 
     async def get_clan_members(self, clan_id: int):
         """Возвращает список членов клана."""
@@ -646,12 +690,14 @@ class ClanService:
                     select(SubscribeToClan).where(
                         SubscribeToClan.clan_id == clan_id,
                         SubscribeToClan.user_id == user_id,
-                        SubscribeToClan.role == "Head"
+                        SubscribeToClan.role == "Head",
                     )
                 )
                 clan_head = result.scalar_one_or_none()
                 if not clan_head:
-                    raise HTTPException(status_code=403, detail="Only clan head can delete the clan")
+                    raise HTTPException(
+                        status_code=403, detail="Only clan Head can delete the clan"
+                    )
 
                 # Удаляем все связи между кланом и его пользователями
                 await session.execute(
@@ -664,10 +710,81 @@ class ClanService:
                 )
 
                 # Удаляем сам клан
-                await session.execute(
-                    delete(Clan).where(Clan.id == clan_id)
+                await session.execute(delete(Clan).where(Clan.id == clan_id))
+
+                logger.info(
+                    f"Clan {clan_id} and all related data deleted by user {user_id}"
                 )
 
-                logger.info(f"Clan {clan_id} and all related data deleted by user {user_id}")
-
         return {"detail": "Clan and all related data delete"}
+
+    async def get_clan_incoming_requests(
+        self, user_id: int
+    ) -> List[SubscribeToClanSchema]:
+        """
+        Получаем список приглашений в клан для конкретного пользователя
+        Args:
+            user_id (int): ID пользователя.
+
+        Returns:
+            List[SubscribeToClanSchema]: Список заявок.
+
+        Raises:
+            HTTPException: Возникает, если клан не найден.
+            HTTPException: Возникает, если у пользователя нет доступа до просмотра заявок.
+        """
+        async with self.session_factory() as session:
+            # Получаем клан пользователя
+            result = await session.execute(
+                select(Clan)
+                .join(SubscribeToClan, Clan.id == SubscribeToClan.clan_id)
+                .where(SubscribeToClan.user_id == user_id)
+            )
+            clan = result.scalar_one_or_none()
+            if not clan:
+                raise HTTPException(status_code=404, detail="Clan not found")
+
+            # Проверяем роль пользователя в клане
+            user_role = await self.get_user_role_in_clan(clan.id, user_id)
+            if "invite_users" not in config.permissions_for_clan.get(user_role, []):
+                raise HTTPException(
+                    status_code=403,
+                    detail="You are not allowed to view incoming requests",
+                )
+
+            # Получаем все входящие заявки
+            result = await session.execute(
+                select(RequestToClan).where(RequestToClan.clan_id == clan.id)
+            )
+            incoming_requests = result.scalars().all()
+
+            # Преобразуем заявки в схемы
+            incoming_requests_schemas = [
+                SubscribeToClanSchema.from_orm(request) for request in incoming_requests
+            ]
+
+            return incoming_requests_schemas
+
+    async def get_all_comings_to_clans(self, user_id: int) -> List[SubscribeToClanSchema]:
+        """
+        Возвращает все приглашения в кланы для конкретного пользователя.
+        Args:
+            user_id (int): ID пользователя.
+
+        Returns:
+            List[SubscribeToClanSchema]: Список заявок.
+
+        Raises:
+            HTTPException: Возникает, если клан не найден.
+        """
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(SubscribeToClan).where(SubscribeToClan.user_id == user_id)
+            )
+            db_members = result.scalars().all()
+            subscribe_list = [SubscribeToClanSchema.from_orm(member) for member in db_members]
+            return subscribe_list
+
+
+def convert_subscribers(subscribers):
+    return [SubscribeToClanSchema.from_orm(subscriber) for subscriber in subscribers]
