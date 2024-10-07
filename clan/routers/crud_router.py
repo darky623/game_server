@@ -5,36 +5,40 @@ from auth.models import User
 from auth.user_service import get_current_user
 
 from clan.clan_service import ClanService
-from clan.schemas import ClanSchemaCreate, ClanSchema, ClanSchemaUpdate, SubscribeToClanSchema
+from clan.schemas import (
+    ClanSchemaCreate,
+    ClanSchema,
+    ClanSchemaUpdate,
+    SubscribeToClanSchema,
+)
 from database import AsyncSessionFactory
 from typing import List
 
-router = APIRouter(prefix='/clan')
+router = APIRouter(prefix="/clan")
 clan_service = ClanService(AsyncSessionFactory)
 
 
-@router.post('/create', response_model=ClanSchemaCreate)
-async def create_clan(clan: ClanSchemaCreate,
-                      user: User = Depends(get_current_user)):
+@router.post("/create", response_model=ClanSchemaCreate)
+async def create_clan(clan: ClanSchemaCreate, user: User = Depends(get_current_user)):
     """
-        Создание нового клана.
+    Создание нового клана.
 
-        Args:
-            clan (ClanSchemaCreate): Данные для создания клана.
-            user (User): Текущий аутентифицированный пользователь.
+    Args:
+        clan (ClanSchemaCreate): Данные для создания клана.
+        user (User): Текущий аутентифицированный пользователь.
 
-        Returns:
-            ClanSchema: Созданный клан.
+    Returns:
+        ClanSchema: Созданный клан.
 
-        Raises:
-            HTTPException: Если возникла ошибка при создании клана.
-        """
+    Raises:
+        HTTPException: Если возникла ошибка при создании клана.
+    """
     return await clan_service.create_clan(clan, user.id)
 
 
-@router.get('/{clan_id}', response_model=ClanSchema)
+@router.get("/{clan_id}", response_model=ClanSchema)
 async def get_clan(
-        clan_id: int,
+    clan_id: int,
 ):
     """
     Получение информации о клане по его ID.
@@ -51,11 +55,8 @@ async def get_clan(
     return await clan_service.get_clan_by_id(clan_id)
 
 
-@router.get('', response_model=List[ClanSchema])
-async def list_clans(
-        skip: int = 0,
-        limit: int = 100
-):
+@router.get("", response_model=List[ClanSchema])
+async def list_clans(skip: int = 0, limit: int = 100):
     """
     Получение списка публичных кланов с пагинацией.
 
@@ -69,11 +70,11 @@ async def list_clans(
     return await clan_service.get_public_clans(skip, limit)
 
 
-@router.put('/{clan_id}', response_model=ClanSchema)
+@router.put("/{clan_id}", response_model=ClanSchema)
 async def update_clan(
-        clan_id: int,
-        clan_update: ClanSchemaUpdate,
-        current_user: User = Depends(get_current_user)
+    clan_id: int,
+    clan_update: ClanSchemaUpdate,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Обновление информации о клане.
@@ -92,11 +93,8 @@ async def update_clan(
     return await clan_service.edit_clan(clan_id, clan_update, current_user.id)
 
 
-@router.delete('/{clan_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_clan(
-        clan_id: int,
-        current_user: User = Depends(get_current_user)
-):
+@router.delete("/{clan_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_clan(clan_id: int, current_user: User = Depends(get_current_user)):
     """
     Удаление клана(может только глава).
 
@@ -126,7 +124,3 @@ async def kick_from_clan(
         HTTPException: Если пользователь не найден в клане.
     """
     return await clan_service.kick_from_clan(clan_id, kick_user_id, user.id)
-
-
-
-

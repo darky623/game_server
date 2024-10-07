@@ -70,7 +70,9 @@ class ClanService:
             int: Текущее количество членов клана.
         """
         result = await session.execute(
-            select(func.count()).select_from(SubscribeToClan).where(SubscribeToClan.clan_id == clan_id)
+            select(func.count())
+            .select_from(SubscribeToClan)
+            .where(SubscribeToClan.clan_id == clan_id)
         )
         db_clan_members_count = result.scalar()
         if not db_clan_members_count:
@@ -169,7 +171,9 @@ class ClanService:
             user_role = await self.get_user_role_in_clan(clan_id, current_user_id)
 
             if "edit_clan_settings" not in config.permissions_for_clan.get(user_role):
-                raise HTTPException(status_code=403, detail="You are not allowed to edit clan settings")
+                raise HTTPException(
+                    status_code=403, detail="You are not allowed to edit clan settings"
+                )
 
             result = await session.execute(select(Clan).where(Clan.id == clan_id))
             db_clan = result.scalar_one_or_none()
@@ -179,7 +183,7 @@ class ClanService:
             for field, value in clan:
                 setattr(db_clan, field, value)
             await session.commit()
-            await session.refresh(db_clan, attribute_names=['subscribers', 'chat'])
+            await session.refresh(db_clan, attribute_names=["subscribers", "chat"])
 
             return ClanSchema.from_orm(db_clan)
 
@@ -557,9 +561,10 @@ class ClanService:
                     name=clan.name,
                     short_name=clan.short_name,
                     avatar=clan.avatar,
-                    subscribers=convert_subscribers(
-                        clan.subscribers
-                    ),  # Применение метода преобразования
+                    subscribers=[
+                        SubscribeToClanSchema.from_orm(subscriber)
+                        for subscriber in clan.subscribers
+                    ],
                 )
                 for clan in clans
             ]
@@ -587,7 +592,7 @@ class ClanService:
                 - Возникает, если достигнут лимит на количество пользователей с определенной ролью.
                 - Возникает, если пытаются назначить лидером не того пользователя.
         """
-        async with (self.session_factory() as session):
+        async with self.session_factory() as session:
             result = await session.execute(select(Clan).where(Clan.id == clan_id))
             clan = result.scalars().first()
             if not clan:
@@ -765,7 +770,9 @@ class ClanService:
 
             return incoming_requests_schemas
 
-    async def get_all_comings_to_clans(self, user_id: int) -> List[SubscribeToClanSchema]:
+    async def get_all_comings_to_clans(
+        self, user_id: int
+    ) -> List[SubscribeToClanSchema]:
         """
         Возвращает все приглашения в кланы для конкретного пользователя.
         Args:
@@ -782,9 +789,7 @@ class ClanService:
                 select(SubscribeToClan).where(SubscribeToClan.user_id == user_id)
             )
             db_members = result.scalars().all()
-            subscribe_list = [SubscribeToClanSchema.from_orm(member) for member in db_members]
+            subscribe_list = [
+                SubscribeToClanSchema.from_orm(member) for member in db_members
+            ]
             return subscribe_list
-
-
-def convert_subscribers(subscribers):
-    return [SubscribeToClanSchema.from_orm(subscriber) for subscriber in subscribers]
