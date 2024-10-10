@@ -6,7 +6,7 @@ from auth.models import User
 from chat.schemas import AddChatSchema, ChatSchema
 from chat.models import Message, Chat
 
-from clan.router import clan_service
+from clan.routers.crud_router import clan_service
 
 
 class ChatService:
@@ -35,7 +35,7 @@ class ChatService:
         async with self.session_factory() as session:
             stmt = select(Message).where(Message.chat_id == chat_id).order_by(Message.timestamp.desc()).limit(quantity)
             result = await session.execute(stmt)
-            messages = result.scalars().all()[::-1]
+            messages = result.unique().scalars().all()[::-1]
             return messages
 
     async def get_chat(self, chat_id: int):

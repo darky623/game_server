@@ -1,4 +1,13 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, func, Enum
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    ForeignKey,
+    Boolean,
+    DateTime,
+    func,
+    Enum,
+)
 from sqlalchemy.orm import relationship
 
 from auth.models import User
@@ -7,7 +16,7 @@ from database import Base
 
 
 class Clan(Base):
-    __tablename__ = 'clans'
+    __tablename__ = "clans"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(25), unique=True, nullable=False)
@@ -20,13 +29,16 @@ class Clan(Base):
     created_at = Column(DateTime, default=func.now())
 
     # Relationships
-    chat_id = Column(Integer, ForeignKey('chats.id'))
-    chat = relationship(Chat, backref='clan', uselist=False)
+    chat_id = Column(Integer, ForeignKey("chats.id"))
+    chat = relationship(Chat, backref="clan", uselist=False)
 
+    # Subscribers
+    subscribers_id = Column(Integer, ForeignKey("users.id"))
     subscribers = relationship(
         "SubscribeToClan",
         back_populates="clan",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        viewonly=True,
     )
 
     def serialize(self):
@@ -42,37 +54,55 @@ class Clan(Base):
 
 class SubscribeToClan(Base):
     """Класс для подписок на клан.
-     Подписчики клана имеющие права на приглашение других людей отправляют заявку игроку
-     формируется подписка со статусом False."""
-    __tablename__ = 'subscribe_to_clans'
+    Подписчики клана имеющие права на приглашение других людей отправляют заявку игроку
+    формируется подписка со статусом False."""
+
+    __tablename__ = "subscribe_to_clans"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    clan_id = Column(Integer, ForeignKey('clans.id'))
-    role = Column(Enum(
-        'Head', 'Deputy', 'Elder', 'Officer', 'Participant',
-        name='role_enum',
-        native_enum=False
-    ), default='Участник')
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    clan_id = Column(Integer, ForeignKey("clans.id"))
+    role = Column(
+        Enum(
+            "Head",
+            "Deputy",
+            "Elder",
+            "Officer",
+            "Participant",
+            name="role_enum",
+            native_enum=False,
+        ),
+        default="Участник",
+    )
     status = Column(Boolean, default=False)
     date_create = Column(DateTime, default=func.now())
 
     # Relationships
-    user = relationship(User, backref='subscribe_to_clans', uselist=False)
-    clan = relationship(Clan, backref='subscribe_to_clans')
+    user = relationship(User, backref="subscribe_to_clans", uselist=False)
+    clan = relationship(Clan, back_populates="subscribers")
 
 
 class RequestToClan(Base):
     """Класс для запросов на вступление в клан.
-     Пользователь отправляется запрос на вступление в клан."""
-    __tablename__ = 'requests_to_clans'
+    Пользователь отправляется запрос на вступление в клан."""
+
+    __tablename__ = "requests_to_clans"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    clan_id = Column(Integer, ForeignKey('clans.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    clan_id = Column(Integer, ForeignKey("clans.id"), nullable=False)
     status = Column(Boolean, default=False)
     date_create = Column(DateTime, default=func.now())
 
     # Relationships
-    user = relationship(User, backref='requests_to_clans', uselist=False)
-    clan = relationship(Clan, backref='requests_to_clans')
+    user = relationship(User, backref="requests_to_clans", uselist=False)
+    clan = relationship(Clan, backref="requests_to_clans")
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "clan_id": self.clan_id,
+            "status": self.status,
+            "date_create": self.date_create,
+        }

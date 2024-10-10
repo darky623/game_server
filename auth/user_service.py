@@ -5,22 +5,23 @@ from sqlalchemy import select
 
 from aiohttp import ClientSession
 from fastapi import Depends, HTTPException, WebSocket
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette import status
 
 import config
 from database import AsyncSessionFactory
 from auth.models import User, AuthSession
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+http_bearer = HTTPBearer()
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    token = credentials.credentials
     user = await check_auth_token(token)
     if not user:
         raise credentials_exception
@@ -31,7 +32,7 @@ async def websocket_authentication(websocket: WebSocket) -> User:
     token = websocket.headers.get('Authorization')
     if token and token.startswith("Bearer "):
         token = token[len("Bearer "):]
-        user = await get_current_user(token)
+        user = await get_current_user(HTTPAuthorizationCredentials(scheme='Bearer', credentials=token))
         user.last_login = datetime.now()
         return user
     else:

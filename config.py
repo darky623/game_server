@@ -1,18 +1,11 @@
 import os
 
-db_url = f'postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}'
-
-auth_server = "http://31.129.54.119"
-
 PG_URL = os.getenv("PG_URL")
 PG_USERNAME = os.getenv("POSTGRES_USER")
 PG_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 DB_NAME = os.getenv("POSTGRES_DB")
 
-if os.getenv("DOCKER"):
-    db_url = f"postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}"
-else:
-    db_url = os.getenv("DB_URL_LOCAL")
+db_url = f"postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}"
 
 auth_server = os.getenv("AUTH_SERVER")
 
