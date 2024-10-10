@@ -44,6 +44,9 @@ class Character(Base):
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
     multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete')
 
+    deck_id = Column(Integer, ForeignKey('deck.id'))
+    deck = relationship('Deck', backref='characters', lazy='joined')
+
     items = relationship('Item', secondary=character_items, lazy='joined')
 
     fragments = Column(Integer, default=0)
