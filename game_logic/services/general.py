@@ -6,6 +6,7 @@ from game_logic.services.class_service import ClassService
 from game_logic.services.item_service import ItemService
 from game_logic.services.params_service import ParamsService
 from game_logic.services.race_service import RaceService
+from game_logic.services.rune_service import RuneService
 
 
 class Services:
@@ -17,3 +18,4 @@ class Services:
         self.params_service: ParamsService = ParamsService(self.__session)
         self.item_service: ItemService = ItemService(self.__session)
         self.character_service: CharacterService = CharacterService(self.__session)
+        self.rune_service: RuneService = RuneService(self.__session)
