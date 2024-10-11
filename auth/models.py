@@ -19,6 +19,7 @@ class User(Base):
     characters = relationship("Character", back_populates="user")
     chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='joined')
     player_progress = relationship("PlayerProgress", back_populates="player", lazy='selectin')
+    decks = relationship("Deck", back_populates="owner")
 
     def serialize(self):
         return {
