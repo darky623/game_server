@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import select, delete
 
-from game_logic.models import Race
+from game_logic.models.models import Race
 from .service import Service
 
 

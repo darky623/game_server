@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 
 from game_logic.services.service import Service
-from game_logic.models import CharacterClass, CharacterSubclass
+from game_logic.models.models import CharacterClass, CharacterSubclass
 from sqlalchemy import select
 
 
