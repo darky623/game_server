@@ -5,7 +5,8 @@ from database import Base
 
 
 class Deck(Base):
-    """Класс для колод пользователей, пользователь может иметь несколько колод, индекс колоды - ее порядковый номер."""
+    """ Один пресет колоды.
+    Класс для колод пользователей, пользователь может иметь несколько колод."""
     __tablename__ = "decks"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
@@ -25,7 +26,9 @@ class Deck(Base):
 
 
 class DeckCharacter(Base):
-    """Класс для связи конкретной колоды игрока и персонажей, которые будут в ней присутствовать."""
+    """ Непосредственно сама карточка в колоде.
+    Класс для связи конкретной колоды игрока и персонажей, которые будут в ней присутствовать."""
+
     __tablename__ = "deck_characters"
 
     id = Column(Integer, primary_key=True, index=True)

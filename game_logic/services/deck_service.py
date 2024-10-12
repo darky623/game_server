@@ -37,7 +37,7 @@ class DeckService(Service):
             user_id (int): ID юзера
             character_ids (List[int]): ID персонажей
         Returns:
-            DeckShema: Новая колода
+            DeckSchema: Новая колода
         """
         max_decks = 10  # Максимальное количество колод для любого игрока
         max_characters = 10  # Максимальное количество персонажей в колоде
@@ -149,21 +149,35 @@ class DeckService(Service):
             )
 
     async def update_deck(
-        self, deck_index: int, character_ids: List[int], is_active: bool = False
+        self, user_id: int, deck_index: int, character_ids: List[int], is_active: bool = False
     ) -> DeckSchema:
         """Обновляет колоду.  is_active=True сделает колоду активной, но только одну."""
         try:
-            await self.session.execute(update(Deck).where(Deck.id == deck_id).values(is_active=True)) # Пример обновления
-            await self.session.execute(delete(DeckCharacter).where(DeckCharacter.deck_id == deck_id)) # Удаляем старые связи
-            await self.session.commit()
-            for i, char_id in enumerate(character_ids):
-                deck_char = DeckCharacter(deck_id=deck_id, character_id=char_id, position=i + 1)
-                await super().add(deck_char)
-            return {"status": "success"}
+            deck = await self.get_user_deck_by_index(user_id, deck_index)
+
+            # Check if all character IDs belong to the user
+            if self.are_characters_owned_by_user(user_id, character_ids) is False:
+                raise HTTPException(400, detail="Not all characters belong to the user")
+
+            if is_active:
+                # Check if there are any active decks for this user
+                decks_user = await self.get_user_decks(user_id)
+                for not_current_deck in decks_user:
+                    not_current_deck.is_active = False
+
+                    await super().add(not_current_deck)
+
+            # Update deck
+            deck.character_ids = character_ids
+            deck.is_active = is_active
+
+            # Save changes
+            await super().add(deck)
+
+            return DeckSchema.from_orm(deck)
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {e}")
-
 
     async def delete_deck(self, deck_id: int) -> None:
         """Удаляет колоду."""
