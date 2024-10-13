@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 import config as settings
 from database import Base
 from chat.models import users_chats
-from game_logic.models import Character
+from game_logic.models.models import Character
 
 
 class User(Base):

@@ -1,13 +1,13 @@
 from typing import List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import insert, select, delete
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.sync import update
+
 from starlette import status
 
 from game_logic.models.deck_models import Deck, DeckCharacter
+from game_logic.schemas.character_schema import CharacterSchema
 from game_logic.services.service import Service
 from game_logic.models.models import Character
 
@@ -15,9 +15,10 @@ from game_logic.schemas.deck_schema import Deck as DeckSchema
 
 
 class DeckService(Service):
-    async def are_characters_owned_by_user(
-        self, user_id: int, character_ids: List[int]
-    ) -> bool:
+    async def are_characters_owned_by_user(self,
+                                           user_id: int,
+                                           character_ids: List[int]
+                                           ) -> bool:
         """"Проверяет, принадлежат ли персонажи юзеру.
         Args:
             user_id (int): ID юзера
@@ -31,7 +32,9 @@ class DeckService(Service):
         characters = result.scalars().all()
         return len(characters) == len(character_ids)
 
-    async def create_deck(self, user_id: int, character_ids: List[int]) -> DeckSchema:
+    async def create_deck(self, user_id: int,
+                          character_ids: List[int]
+                          ) -> DeckSchema:
         """Создает новую колоду для пользователя.
         Args:
             user_id (int): ID юзера
@@ -53,12 +56,14 @@ class DeckService(Service):
 
         # Check if all character IDs belong to the user
         if self.are_characters_owned_by_user(user_id, character_ids) is False:
-            raise HTTPException(400, detail="Not all characters belong to the user")
+            raise HTTPException(400,
+                                detail="Not all characters belong to the user")
 
         try:
             # Создаем новую колоду
             deck = Deck(
-                user_id=user_id, is_active=False, deck_index=current_decks_count + 1
+                user_id=user_id, is_active=False,
+                deck_index=current_decks_count + 1
             )
             deck = await super().add(deck)
 
@@ -86,11 +91,13 @@ class DeckService(Service):
             DeckSchema: Колода
         """
         try:
-            deck = await self.session.execute(select(Deck).where(Deck.id == deck_id))
+            deck = await self.session.execute(select(Deck)
+                                              .where(Deck.id == deck_id))
             deck = deck.scalars().first()
             if not deck:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Deck not found"
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Deck not found"
                 )
             return DeckSchema.from_orm(deck)
         except SQLAlchemyError as e:
@@ -121,9 +128,10 @@ class DeckService(Service):
                 detail=f"Database error: {e}",
             )
 
-    async def get_user_deck_by_index(
-        self, user_id: int, deck_index: int
-    ) -> Optional[DeckSchema]:
+    async def get_user_deck_by_index(self,
+                                     user_id: int,
+                                     deck_index: int
+                                     ) -> Optional[DeckSchema]:
         """Возвращает колоду пользователя по индексу.
         Args:
             user_id (int): ID юзера
@@ -133,13 +141,15 @@ class DeckService(Service):
         try:
             deck = await self.session.execute(
                 select(Deck).where(
-                    Deck.user_id == user_id, Deck.deck_index == deck_index
+                    Deck.user_id == user_id,
+                    Deck.deck_index == deck_index
                 )
             )
             deck = deck.scalars().first()
             if not deck:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Deck not found"
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Deck not found"
                 )
             return DeckSchema.from_orm(deck)
         except SQLAlchemyError as e:
@@ -148,16 +158,29 @@ class DeckService(Service):
                 detail=f"Database error: {e}",
             )
 
-    async def update_deck(
-        self, user_id: int, deck_index: int, character_ids: List[int], is_active: bool = False
-    ) -> DeckSchema:
-        """Обновляет колоду.  is_active=True сделает колоду активной, но только одну."""
+    async def update_deck(self,
+                          user_id: int,
+                          deck_index: int,
+                          character_ids: List[int],
+                          is_active: bool = False
+                          ) -> DeckSchema:
+        """Обновляет колоду.  is_active=True сделает колоду активной, но только одну.
+        Args:
+            user_id (int): ID юзера
+            deck_index (int): Индекс колоды
+            character_ids (List[int]): ID персонажей
+            is_active (bool): Активность колоды
+            (по умолчанию False)
+        Returns:
+            DeckSchema: Обновленная колода
+        """
         try:
             deck = await self.get_user_deck_by_index(user_id, deck_index)
 
             # Check if all character IDs belong to the user
             if self.are_characters_owned_by_user(user_id, character_ids) is False:
-                raise HTTPException(400, detail="Not all characters belong to the user")
+                raise HTTPException(400,
+                                    detail="Not all characters belong to the user")
 
             if is_active:
                 # Check if there are any active decks for this user
@@ -177,47 +200,62 @@ class DeckService(Service):
             return DeckSchema.from_orm(deck)
         except SQLAlchemyError as e:
             await self.session.rollback()
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail=f"Database error: {e}")
 
-    async def delete_deck(self, deck_id: int) -> None:
-        """Удаляет колоду."""
-        async with self.session_factory() as session:
-            async with session.begin():
-                await session.execute(
-                    delete(DeckCharacter).where(DeckCharacter.deck_id == deck_id)
+    async def delete_deck_by_index(self,
+                                   user_id: int,
+                                   deck_index: int
+                                   ) -> None:
+        """Удаляет колоду.
+        Args:
+            user_id (int): ID юзера
+            deck_index (int): ID колоды
+        Returns:
+            None
+        """
+        try:
+            deck = await self.get_user_deck_by_index(user_id, deck_index)
+            if deck:
+                await self.session.delete(deck)
+                await self.session.commit()
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Deck not found"
                 )
-                await session.execute(delete(Deck).where(Deck.id == deck_id))
-                await session.commit()
+        except SQLAlchemyError as e:
+            await self.session.rollback()
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail=f"Database error: {e}")
 
     async def get_active_deck(self, user_id: int) -> Optional[Deck]:
-        """Возвращает активную колоду пользователя."""
-        async with self.session_factory() as session:
-            result = await session.execute(
-                select(Deck)
-                .where(Deck.user_id == user_id, Deck.is_active == True)
-                .limit(1)
-            )
-            return result.scalars().first()
+        """Возвращает активную колоду пользователя.
+        Args:
+            user_id (int): ID юзера
+        Returns:
+            DeckSchema: Активная колода, если она есть, None иначе
+        """
+        result = await self.session.execute(
+            select(Deck)
+            .where(Deck.user_id == user_id, Deck.is_active == True)
+            .limit(1)
+        )
+        deck = result.scalars().first()
+        if not result:
+            return None
+        return DeckSchema.from_orm(deck)
 
-    async def get_deck_by_index(self, user_id: int, deck_index: int) -> Optional[Deck]:
-        """Возвращает колоду по user_id и deck_index."""
-        async with self.session_factory() as session:
-            stmt = (
-                select(Deck)
-                .join(UserDeck)
-                .where(UserDeck.user_id == user_id, UserDeck.deck_index == deck_index)
-            )
-            result = await session.execute(stmt)
-            user_deck = result.scalars().first()
-            return user_deck.deck if user_deck else None
-
-    async def get_user_decks(self, user_id: int) -> List[Tuple[Deck, int]]:
-        """Возвращает все колоды пользователя с deck_index."""
-        async with self.session_factory() as session:
-            stmt = (
-                select(Deck, UserDeck.deck_index)
-                .join(UserDeck)
-                .where(UserDeck.user_id == user_id)
-            )
-            result = await session.execute(stmt)
-            return result.all()
+    async def get_current_characters_in_deck(self,
+                                             user_id: int,
+                                             deck_index: int
+                                             ) -> List[CharacterSchema]:
+        """Возвращает персонажей в текущей колоде.
+        Args:
+            user_id (int): ID юзера
+            deck_index (int): ID колоды
+        Returns:
+            List[CharacterSchema]: Список персонажей в текущей колоде
+        """
+        deck = await self.get_user_deck_by_index(user_id, deck_index)
+        return [CharacterSchema.from_orm(character) for character in deck.characters]

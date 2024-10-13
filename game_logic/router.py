@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from game_logic.routers import deck_router
+from game_logic.routers.deck_router import router as deck_router
 from game_logic.routers.classes_router import router as classes_router
 from game_logic.routers.races_router import router as races_router
 from game_logic.routers.items_router import router as items_router

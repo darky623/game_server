@@ -1,6 +1,6 @@
-from typing import Optional, List
+from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class DeckCharacter(BaseModel):
@@ -9,7 +9,7 @@ class DeckCharacter(BaseModel):
     position: int
 
     class Config:
-        schema_extra = {"example": {"deck_id": 1, "character_id": 123, "position": 1}}
+        json_schema_extra = {"example": {"deck_id": 1, "character_id": 123, "position": 1}}
 
 
 class Deck(BaseModel):
@@ -20,7 +20,7 @@ class Deck(BaseModel):
 
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "user_id": 1,
                 "is_active": False,
