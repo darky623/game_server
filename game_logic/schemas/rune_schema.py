@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+from game_logic.schemas.ability_schema import AbilitySchema
 from game_logic.schemas.params_schema import AddSummandParamsSchema, AddMultiplierParamsSchema
 
 
@@ -11,9 +12,9 @@ class AddRuneSchema(BaseModel):
     ability_ids: list[int] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class RuneSchema(AddRuneSchema):
     id: int
-
+    abilities: list[AbilitySchema]

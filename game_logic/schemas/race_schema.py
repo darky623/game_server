@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing_extensions import Optional
 
-from game_logic.schemas.ability_schema import AddAbilitySchema
+from game_logic.schemas.ability_schema import AddAbilitySchema, AbilitySchema
 from game_logic.schemas.params_schema import AddSummandParamsSchema, AddMultiplierParamsSchema
 
 
@@ -14,6 +14,7 @@ class AddRaceSchema(BaseModel):
 
 class RaceSchema(AddRaceSchema):
     id: int
+    abilities: list[AbilitySchema]
 
     class Config:
         from_attributes = True

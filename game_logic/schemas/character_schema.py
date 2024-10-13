@@ -38,3 +38,24 @@ class CharacterSchema(AddCharacterSchema):
     character_class: CharacterClassSchema
     subclass: CharacterSubclassSchema
 
+
+class EditCharacterSchema(BaseModel):
+    name: str = None
+    avatar: Optional[str] = None
+
+    race_id: Optional[int] = None
+    class_id: Optional[int] = None
+    subclass_id: Optional[int] = None
+    character_type: Optional[str] = None
+
+    summand_params: Optional[AddSummandParamsSchema] = None
+    multiplier_params: Optional[AddMultiplierParamsSchema] = None
+
+    item_ids: Optional[list[int]] = []
+    ability_ids: Optional[list[int]] = []
+
+    stardom: Optional[int] = None
+    level: Optional[int] = None
+
+    class Config:
+        from_attributes = True
