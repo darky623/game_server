@@ -7,7 +7,7 @@ from database import AsyncSessionFactory
 from friends.friend_service import FriendService
 from friends.schemas import RequestToFriendCreate, RequestToFriendUpdate
 
-router = APIRouter(prefix="/friends", tags=["Друзья"])
+router = APIRouter(prefix="/friends", tags=["Friends"])
 
 friend_service = FriendService(AsyncSessionFactory)
 

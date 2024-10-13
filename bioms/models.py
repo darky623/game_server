@@ -2,7 +2,7 @@ from sqlalchemy import Table, Column, Integer, ForeignKey, String, Text, LargeBi
 from sqlalchemy.orm import relationship
 
 from database import Base
-from game_logic.models import Character
+from game_logic.models.models import Character
 
 boss_abilities = Table(
     "boss_abilities",

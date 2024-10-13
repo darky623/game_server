@@ -7,7 +7,7 @@ from bioms.player_progress_service import PlayerProgressService
 from bioms.schemas import PlayerProgressSchema, PlayerProgressUpdateSchema
 from database import AsyncSessionFactory
 
-router = APIRouter(prefix="/player_progress")
+router = APIRouter(prefix="/player_progress", tags={"player_progress"})
 service = PlayerProgressService(AsyncSessionFactory)
 
 

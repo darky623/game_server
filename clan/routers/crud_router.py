@@ -14,7 +14,7 @@ from clan.schemas import (
 from database import AsyncSessionFactory
 from typing import List
 
-router = APIRouter(prefix="/clan")
+router = APIRouter(prefix="/clan", tags=["clan"])
 clan_service = ClanService(AsyncSessionFactory)
 
 
