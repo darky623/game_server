@@ -6,7 +6,7 @@ from game_logic.schemas.class_schema import AddCharacterClassSchema, AddCharacte
 from deps import get_services
 from game_logic.models import SummandParams, MultiplierParams, CharacterClass, CharacterSubclass
 
-router = APIRouter(prefix='/classes')
+router = APIRouter(prefix='/classes', tags=['classes'])
 
 
 @router.post('', response_model=CharacterClassSchema, dependencies=[Depends(get_current_user)])
@@ -33,7 +33,9 @@ async def get_classes(services = Depends(get_services)):
 @router.get('/{class_id}', response_model=CharacterClassSchema)
 async def get_class_by_id(class_id: int,
                           services = Depends(get_services)):
-    return await services.class_service.get_by_id(class_id)
+    character_class = await services.class_service.get_by_id(class_id)
+    schema = CharacterClassSchema.from_orm(character_class)
+    return schema
 
 
 @router.delete('/{class_id}', dependencies=[Depends(get_current_user)])
