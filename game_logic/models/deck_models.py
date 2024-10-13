@@ -11,7 +11,7 @@ class Deck(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     is_active = Column(Boolean, default=False)
-    deck_index = Column(Integer)  # Индекс пресета колоды для пользователя
+    deck_index = Column(Integer, unique=True)  # Индекс пресета колоды для пользователя
 
     owner = relationship("User", back_populates="decks")
     characters = relationship("DeckCharacter", back_populates="deck")

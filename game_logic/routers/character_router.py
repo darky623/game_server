@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from auth.models import User
 from auth.user_service import get_current_user
 from deps import get_services
-from game_logic.models import SummandParams, MultiplierParams, CharacterClass, Character, CharacterType, Race
+from game_logic.models.models import SummandParams, MultiplierParams, CharacterClass, Character, CharacterType, Race
 from game_logic.schemas.character_schema import CharacterSchema, AddCharacterSchema
 from game_logic.services.general import Services
 

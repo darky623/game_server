@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from deps import get_services
 from auth.user_service import get_current_user
-from game_logic.models import SummandParams, MultiplierParams, Ability, TriggerCondition
+from game_logic.models.models import SummandParams, MultiplierParams, Ability, TriggerCondition
 from game_logic.schemas.ability_schema import AddAbilityTypeSchema, AbilityTypeSchema, AbilitySchema, AddAbilitySchema
 
 router = APIRouter(prefix='/abilities', tags=['Abilities'], dependencies=[Depends(get_current_user)])

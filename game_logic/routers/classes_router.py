@@ -4,7 +4,7 @@ from auth.user_service import get_current_user
 from game_logic.schemas.class_schema import AddCharacterClassSchema, AddCharacterSubclassSchema, CharacterClassSchema, \
     CharacterSubclassSchema
 from deps import get_services
-from game_logic.models import SummandParams, MultiplierParams, CharacterClass, CharacterSubclass
+from game_logic.models.models import SummandParams, MultiplierParams, CharacterClass, CharacterSubclass
 
 router = APIRouter(prefix='/classes')
 
