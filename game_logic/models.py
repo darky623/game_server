@@ -110,7 +110,7 @@ class CharacterClass(Base):
     summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
     summand_params = relationship("SummandParams", lazy='joined', cascade='all, delete')
 
-    subclasses = relationship('CharacterSubclass', back_populates='character_class', lazy='joined')
+    subclasses = relationship('CharacterSubclass', back_populates='character_class', lazy='joined', cascade='all, delete')
 
     abilities = relationship('Ability', secondary=classes_abilities, lazy='joined')
 
@@ -295,7 +295,7 @@ class Ability(Base):
     tier = Column(Integer, nullable=False, default=0)
 
     ability_type_id = Column(Integer, ForeignKey('ability_types.id'))
-    ability_type = relationship('AbilityType')
+    ability_type = relationship('AbilityType', lazy='joined', cascade='all, delete')
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'), nullable=True)
     summand_params = relationship("SummandParams", cascade='all, delete', lazy='joined')
