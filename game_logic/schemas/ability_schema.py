@@ -4,6 +4,17 @@ from typing_extensions import Optional
 from game_logic.schemas.params_schema import AddMultiplierParamsSchema, AddSummandParamsSchema
 
 
+class AddAbilityTypeSchema(BaseModel):
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class AbilityTypeSchema(AddAbilityTypeSchema):
+    id: int
+
+
 class AddAbilitySchema(BaseModel):
     name: str
     icon: str
@@ -26,14 +37,4 @@ class AddAbilitySchema(BaseModel):
 
 class AbilitySchema(AddAbilitySchema):
     id: int
-
-
-class AddAbilityTypeSchema(BaseModel):
-    name: str
-
-    class Config:
-        from_attributes = True
-
-
-class AbilityTypeSchema(AddAbilityTypeSchema):
-    id: int
+    ability_type: AbilityTypeSchema

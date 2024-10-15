@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from game_logic.schemas.params_schema import AddMultiplierParamsSchema, AddSummandParamsSchema
-from game_logic.schemas.ability_schema import AddAbilitySchema
+from game_logic.schemas.ability_schema import AddAbilitySchema, AbilitySchema
 
 
 class AddCharacterSubclassSchema(BaseModel):
@@ -24,6 +24,7 @@ class AddCharacterClassSchema(BaseModel):
 
 class CharacterSubclassSchema(AddCharacterClassSchema):
     id: int
+    abilities: list[AbilitySchema]
 
     class Config:
         from_attributes = True

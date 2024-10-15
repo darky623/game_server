@@ -1,5 +1,5 @@
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 import config as settings
 from database import Base
 from chat.models import users_chats
@@ -20,6 +20,7 @@ class User(Base):
     chats = relationship("Chat", secondary=users_chats, back_populates='users', lazy='joined')
     player_progress = relationship("PlayerProgress", back_populates="player", lazy='selectin')
     decks = relationship("Deck", back_populates="owner")
+    is_admin = Column(Boolean, default=False)
 
     def serialize(self):
         return {
