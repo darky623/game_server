@@ -11,7 +11,6 @@ character_items = Table(
     Column('item_id', Integer, ForeignKey('items.id'), primary_key=True)
 )
 
-
 character_runes = Table(
     'character_runes',
     Base.metadata,
@@ -19,7 +18,6 @@ character_runes = Table(
     Column('rune_id', Integer, ForeignKey('runes.id'), primary_key=True)
 
 )
-
 
 class CharacterType(enum.Enum):
     MAIN = 'main'
@@ -55,6 +53,7 @@ class Character(Base):
     multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete')
 
     items = relationship('Item', secondary=character_items, lazy='joined')
+
     runes = relationship('Rune', secondary=character_runes, lazy='joined')
 
     fragments = Column(Integer, default=0)
@@ -295,6 +294,7 @@ class Ability(Base):
     tier = Column(Integer, nullable=False, default=0)
 
     ability_type_id = Column(Integer, ForeignKey('ability_types.id'))
+
     ability_type = relationship('AbilityType', lazy='joined', cascade='all, delete')
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'), nullable=True)

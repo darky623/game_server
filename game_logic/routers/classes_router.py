@@ -8,7 +8,7 @@ from game_logic.schemas.class_schema import AddCharacterClassSchema, AddCharacte
     CharacterSubclassSchema
 from deps import get_services
 from game_logic.models.models import SummandParams, MultiplierParams, CharacterClass, CharacterSubclass
-from cache.client import cache_service
+
 from time import sleep
 
 router = APIRouter(prefix='/classes', tags=['classes'])
@@ -30,7 +30,6 @@ async def create_class(add_class: AddCharacterClassSchema,
 
 
 @router.get('', response_model=list[CharacterClassSchema], dependencies=[Depends(get_current_user)])
-@cache_service.cache_response(60)
 async def get_classes(services = Depends(get_services)):
     classes = await services.class_service.get_all()
     response = [CharacterClassSchema.from_orm(character_class) for character_class in classes]
@@ -38,7 +37,6 @@ async def get_classes(services = Depends(get_services)):
 
 
 @router.get('/{class_id}', response_model=CharacterClassSchema)
-@cache_service.cache_response(60)
 async def get_class_by_id(class_id: int,
                           services = Depends(get_services)):
     character_class = await services.class_service.get_by_id(class_id)

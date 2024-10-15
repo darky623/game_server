@@ -8,7 +8,7 @@ from chat.schemas import ChatSchema
 class ClanSchemaBase(BaseModel):
     name: str = Field(..., max_length=25)
     short_name: str = Field(..., max_length=3)
-    avatar: str = Field(...)
+    avatar: str | None = None
     rang: int = 1
     is_public: bool = True
     is_ghost: bool = False
@@ -16,11 +16,7 @@ class ClanSchemaBase(BaseModel):
 
 
 class SubscribeToClanSchemaBase(BaseModel):
-    role: str = Field(..., enum=['Head',
-                                 'Deputy',
-                                 'Elder',
-                                 'Officer',
-                                 'Participant'])
+    role: Optional[str] = None
     status: bool = False
 
 
@@ -33,7 +29,10 @@ class SubscribeToClanSchema(SubscribeToClanSchemaBase):
     id: int
     user_id: int
     clan_id: int
-    date_create: datetime = None
+    date_create: datetime | None = None
+
+    class Config:
+        from_attributes = True
 
 
 class SubscribeToClanSchemaUpdate(BaseModel):
@@ -56,6 +55,9 @@ class RequestToClanSchema(RequestToClanSchemaBase):
     clan_id: int
     date_create: datetime
 
+    class Config:
+        from_attributes = True
+
 
 class RequestToClanSchemaUpdate(BaseModel):
     status: Optional[bool] = None
@@ -75,7 +77,7 @@ class ClanSchema(ClanSchemaBase):
         from_attributes = True
 
 
-class ClanSchemaUpdate(BaseModel):
+class ClanSchemaUpdate(ClanSchemaBase):
 
     rang: Optional[int] = None
     is_public: Optional[bool] = True

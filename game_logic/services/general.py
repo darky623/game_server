@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from game_logic.services.ability_service import AbilityService
 from game_logic.services.character_service import CharacterService
 from game_logic.services.class_service import ClassService
+from game_logic.services.deck_service import DeckService
 from game_logic.services.item_service import ItemService
 from game_logic.services.params_service import ParamsService
 from game_logic.services.race_service import RaceService
@@ -18,4 +19,5 @@ class Services:
         self.params_service: ParamsService = ParamsService(self.__session)
         self.item_service: ItemService = ItemService(self.__session)
         self.character_service: CharacterService = CharacterService(self.__session)
+        self.deck_service: DeckService = DeckService(self.__session)
         self.rune_service: RuneService = RuneService(self.__session)

@@ -6,7 +6,7 @@ from auth.models import User
 from chat.schemas import AddChatSchema, ChatSchema
 from chat.models import Message, Chat
 
-from clan.router import clan_service
+from clan.routers.crud_router import clan_service
 
 
 class ChatService:

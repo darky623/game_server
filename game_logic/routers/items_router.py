@@ -1,5 +1,7 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
-from typing_extensions import Optional
+
 
 from auth.user_service import get_current_user
 from deps import get_services

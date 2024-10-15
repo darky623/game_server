@@ -7,7 +7,7 @@ from bioms.schemas import BiomeSchema, BiomeCreateSchema
 
 from auth.user_service import get_current_user
 
-router = APIRouter(prefix="/biome")
+router = APIRouter(prefix="/biome", tags={"biome"})
 biome_service = BiomeService(AsyncSessionFactory)
 
 

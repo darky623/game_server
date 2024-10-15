@@ -2,7 +2,8 @@ from fastapi import HTTPException
 from sqlalchemy import select, delete
 
 from game_logic.models.models import Item
-from .service import Service
+
+from game_logic.services.service import Service
 
 
 class ItemService(Service):
