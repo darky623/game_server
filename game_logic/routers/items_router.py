@@ -3,7 +3,7 @@ from typing_extensions import Optional
 
 from auth.user_service import get_current_user
 from deps import get_services
-from game_logic.models import SummandParams, MultiplierParams, Item
+from game_logic.models.models import SummandParams, MultiplierParams, Item
 from game_logic.schemas.item_schema import AddItemSchema, GetItemsSchema, ItemSchema
 
 router = APIRouter(prefix='/items', tags=['items'])

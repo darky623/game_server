@@ -28,6 +28,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(h
     return user
 
 
+async def get_current_admin_user(user: User = Depends(get_current_user)):
+    if user.is_admin:
+        return user
+    raise HTTPException(403, 'You are not admin')
+
+
 async def websocket_authentication(websocket: WebSocket) -> User:
     token = websocket.headers.get('Authorization')
     if token and token.startswith("Bearer "):

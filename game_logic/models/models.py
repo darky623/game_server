@@ -12,10 +12,20 @@ character_items = Table(
 )
 
 
+character_runes = Table(
+    'character_runes',
+    Base.metadata,
+    Column('character_id', Integer, ForeignKey('characters.id'), primary_key=True),
+    Column('rune_id', Integer, ForeignKey('runes.id'), primary_key=True)
+
+)
+
+
 class CharacterType(enum.Enum):
     MAIN = 'main'
     SECONDARY = 'secondary'
     COLLECTIBLE = 'collectible'
+    BOSS = 'boss'
 
 
 class Character(Base):
@@ -45,6 +55,7 @@ class Character(Base):
     multiplier_params = relationship("MultiplierParams", lazy='joined', cascade='all, delete')
 
     items = relationship('Item', secondary=character_items, lazy='joined')
+    runes = relationship('Rune', secondary=character_runes, lazy='joined')
 
     fragments = Column(Integer, default=0)
     avatar = Column(String)
@@ -99,7 +110,7 @@ class CharacterClass(Base):
     summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
     summand_params = relationship("SummandParams", lazy='joined', cascade='all, delete')
 
-    subclasses = relationship('CharacterSubclass', back_populates='character_class', lazy='joined')
+    subclasses = relationship('CharacterSubclass', back_populates='character_class', lazy='joined', cascade='all, delete')
 
     abilities = relationship('Ability', secondary=classes_abilities, lazy='joined')
 
@@ -284,13 +295,13 @@ class Ability(Base):
     tier = Column(Integer, nullable=False, default=0)
 
     ability_type_id = Column(Integer, ForeignKey('ability_types.id'))
-    ability_type = relationship('AbilityType')
+    ability_type = relationship('AbilityType', lazy='joined', cascade='all, delete')
 
     summand_params_id = Column(Integer, ForeignKey('summand_params.id'), nullable=True)
-    summand_params = relationship("SummandParams", cascade='all, delete')
+    summand_params = relationship("SummandParams", cascade='all, delete', lazy='joined')
 
     multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'), nullable=True)
-    multiplier_params = relationship("MultiplierParams", cascade='all, delete')
+    multiplier_params = relationship("MultiplierParams", cascade='all, delete', lazy='joined')
 
     chance = Column(Float, default=1)
     summoned_character_id = Column(Integer, ForeignKey('characters.id'), nullable=True)
@@ -314,3 +325,26 @@ class AbilityType(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
+
+
+runes_abilities = Table(
+    'runes_abilities',
+    Base.metadata,
+    Column('rune_id', Integer, ForeignKey('runes.id'), primary_key=True),
+    Column('ability_id', Integer, ForeignKey('abilities.id'), primary_key=True)
+)
+
+
+class Rune(Base):
+    __tablename__ = 'runes'
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    level = Column(Integer)
+
+    summand_params_id = Column(Integer, ForeignKey('summand_params.id'))
+    summand_params = relationship("SummandParams", cascade='all, delete', lazy='joined')
+    multiplier_params_id = Column(Integer, ForeignKey('multiplier_params.id'))
+    multiplier_params = relationship("MultiplierParams", cascade='all, delete', lazy='joined')
+
+    abilities = relationship('Ability', secondary=runes_abilities, lazy='joined')

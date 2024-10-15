@@ -5,12 +5,11 @@ from database import AsyncSessionFactory
 from game_logic.services.general import Services
 
 
-async def get_session(commit_on_close=True) -> AsyncSession:
+async def get_session() -> AsyncSession:
     async with AsyncSessionFactory() as session:
         try:
             yield session
-            if commit_on_close:
-                await session.commit()
+            await session.commit()
         except:
             await session.rollback()
             raise

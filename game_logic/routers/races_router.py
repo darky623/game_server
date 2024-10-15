@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from auth.user_service import get_current_user
 from deps import get_services
-from game_logic.models import SummandParams, MultiplierParams, Race
+from game_logic.models.models import SummandParams, MultiplierParams, Race
 from game_logic.schemas.race_schema import AddRaceSchema, RaceSchema
 
 router = APIRouter(prefix='/races', tags=['Races'])

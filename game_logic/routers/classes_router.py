@@ -1,12 +1,17 @@
+import json
+from linecache import cache
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from auth.user_service import get_current_user
 from game_logic.schemas.class_schema import AddCharacterClassSchema, AddCharacterSubclassSchema, CharacterClassSchema, \
     CharacterSubclassSchema
 from deps import get_services
-from game_logic.models import SummandParams, MultiplierParams, CharacterClass, CharacterSubclass
+from game_logic.models.models import SummandParams, MultiplierParams, CharacterClass, CharacterSubclass
+from cache.client import cache_service
+from time import sleep
 
-router = APIRouter(prefix='/classes')
+router = APIRouter(prefix='/classes', tags=['classes'])
 
 
 @router.post('', response_model=CharacterClassSchema, dependencies=[Depends(get_current_user)])
@@ -25,15 +30,20 @@ async def create_class(add_class: AddCharacterClassSchema,
 
 
 @router.get('', response_model=list[CharacterClassSchema], dependencies=[Depends(get_current_user)])
+@cache_service.cache_response(60)
 async def get_classes(services = Depends(get_services)):
     classes = await services.class_service.get_all()
-    return classes
+    response = [CharacterClassSchema.from_orm(character_class) for character_class in classes]
+    return response
 
 
 @router.get('/{class_id}', response_model=CharacterClassSchema)
+@cache_service.cache_response(60)
 async def get_class_by_id(class_id: int,
                           services = Depends(get_services)):
-    return await services.class_service.get_by_id(class_id)
+    character_class = await services.class_service.get_by_id(class_id)
+    schema = CharacterClassSchema.from_orm(character_class)
+    return schema
 
 
 @router.delete('/{class_id}', dependencies=[Depends(get_current_user)])
