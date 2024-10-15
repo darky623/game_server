@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi import Depends
 
 from deps import get_services
-from game_logic.models import SummandParams, MultiplierParams, Rune
+from game_logic.models.models import SummandParams, MultiplierParams, Rune
 from game_logic.schemas.rune_schema import RuneSchema, AddRuneSchema
 from game_logic.services.general import Services
 

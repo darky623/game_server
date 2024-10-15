@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from game_logic.models import SummandParams, MultiplierParams
+from game_logic.models.models import SummandParams, MultiplierParams
 from game_logic.services.service import Service
 
 

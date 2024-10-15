@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import select, delete
 
-from game_logic.models import Ability, AbilityType
+from game_logic.models.models import Ability, AbilityType
 from game_logic.schemas.ability_schema import AddAbilityTypeSchema, AbilityTypeSchema
 from game_logic.services.service import Service
 
