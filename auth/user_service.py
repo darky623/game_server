@@ -8,8 +8,8 @@ from fastapi import Depends, HTTPException, WebSocket
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette import status
 
-import config
-from database import AsyncSessionFactory
+from config import config
+from config.database import AsyncSessionFactory
 from auth.models import User, AuthSession
 
 http_bearer = HTTPBearer()

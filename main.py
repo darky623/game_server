@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from bioms.router_biome import router as biome_router
-from bioms.router_player_progress import router as player_progress_router
-from chat.router import router as chat_router
-from chat.websocket import router as chat_websocket_router
-from friends.router import router as friends_router
-from game_logic.router import router as game_logic_router
-from clan.routers.crud_router import router as clan_router
-from clan.routers.subscribe_router import router as subscribe_clan_router
+from src.bioms.router_biome import router as biome_router
+from src.bioms.router_player_progress import router as player_progress_router
+from src.chat.router import router as chat_router
+from src.chat.websocket import router as chat_websocket_router
+from src.friends.router import router as friends_router
+from src.game_logic.router import router as game_logic_router
+from src.clan.routers.crud_router import router as clan_router
+from src.clan.routers.subscribe_router import router as subscribe_clan_router
 
 
 app = FastAPI()
