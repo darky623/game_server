@@ -68,7 +68,9 @@ def upgrade() -> None:
         sa.Column("evasion", sa.Float(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_summand_params_id"), "summand_params", ["id"], unique=False)
+    op.create_index(
+        op.f("ix_summand_params_id"), "summand_params", ["id"], unique=False
+    )
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), nullable=False),

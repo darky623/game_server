@@ -1,9 +1,8 @@
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
-import config as settings
-from database import Base
-from chat.models import users_chats
-from game_logic.models.models import Character
+from config import config as settings
+from config.database import Base
+from src.chat.models import users_chats
 
 
 class User(Base):
