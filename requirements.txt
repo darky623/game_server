@@ -11,3 +11,5 @@ uvicorn[standard]
 
 redis~=5.0.8
 typing_extensions~=4.12.2
+pydantic-settings==2.6.0
+
