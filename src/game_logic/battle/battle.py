@@ -1,7 +1,7 @@
 import json
 import random
 
-from game_logic.battle.controllers import AbilityController, CharacterController
+from src.game_logic.battle.controllers import AbilityController, CharacterController
 
 
 class Battle:

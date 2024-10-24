@@ -1,9 +1,12 @@
-from game_logic.models.models import Character, Ability
+from game_logic.models.models import Character, Ability, character_items
 
 
 class CharacterController:
     def __init__(self, character: Character):
         self.character = character
+        self.active_abilities: dict[int, AbilityController] = self.get_active_abilities()
+        self.passive_abilities: list = self.get_passive_abilities()
+        self.base_params = character.base_params.copy()
         self.log = []
         self.health = 0
         self.physical_damage = 0
@@ -16,6 +19,9 @@ class CharacterController:
         self.log_action({
             'attack': f'{self.character.name} атаковал {target.character.name} с использованием {ability.name}, нанес урон: {damage}'
         })
+
+    def use_passive_abilities(self):
+        ...
 
     def receive_damage(self, damage: int):
         self.health -= damage
@@ -43,6 +49,19 @@ class CharacterController:
 
     def get_battle_log(self):
         return self.log
+
+    def get_active_abilities(self):
+        result = {}
+        for ability in self.character.subclass.abilities:
+            result[ability.tier] = AbilityController(ability)
+        return result
+
+    def get_passive_abilities(self):
+        result = []
+        result.extend([AbilityController(ability) for ability in self.character.character_class.abilities])
+        result.extend([AbilityController(ability) for ability in self.character.race.abilities])
+        result.extend(AbilityController(ability) for ability in self.character.runes.abilities)
+        return result
 
 
 class AbilityController:
@@ -105,6 +124,13 @@ class AbilityController:
             action_desc['success'] = False
 
         user.log_action(action_desc)
+
+
+class EffectController:
+    def __init__(self):
+        ...
+
+
 
 
 
