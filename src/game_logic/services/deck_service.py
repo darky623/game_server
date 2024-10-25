@@ -100,6 +100,7 @@ class DeckService(Service):
                     detail="Deck not found"
                 )
             return DeckSchema.from_orm(deck)
+        # TODO: добавить информацию о персонажах в запрос колоды
         except SQLAlchemyError as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
