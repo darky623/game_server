@@ -6,12 +6,12 @@ from datetime import datetime
 
 Base = declarative_base()
 
+
 class Energy(Base):
     __tablename__ = "energy"
     id = Column(Integer, primary_key=True, index=True)
-    amount = Column(Float, nullable=False, default=0.0)
+    amount = Column(Integer, nullable=False, default=100)
     last_updated = Column(DateTime, nullable=False, default=datetime.now)
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     user = relationship("User", back_populates="energy")
-

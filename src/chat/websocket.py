@@ -15,8 +15,7 @@ manager = ChatConnectionManager()
 @router.websocket('/{chat_id}')
 async def chat_websocket(websocket: WebSocket,
                          chat_id: int,
-                         user: User = Depends(websocket_authentication)
-):
+                         user: User = Depends(websocket_authentication)):
     try:
         if not user:
             await websocket.send_json(str({
