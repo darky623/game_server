@@ -1,19 +1,3 @@
-import os
-
-PG_URL = os.getenv("PG_URL")
-PG_USERNAME = os.getenv("POSTGRES_USER")
-PG_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DB_NAME = os.getenv("POSTGRES_DB")
-
-db_url = f"postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}"
-
-auth_server = os.getenv("AUTH_SERVER")
-
-secret_key = os.environ.get("SECRET_KEY")
-
-dt_format = "%d/%m/%Y %H:%M:%S"
-token_lifetime = 360000
-
 permissions_for_clan = {
     "Head": [
         "invite_users",

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from src.chat.schemas import AddChatSchema, ChatSchema
+from src.chat.schemas import AddChatSchema, ChatSchema, MessageSchema
 from auth.models import User
 from auth.user_service import get_current_user
 from src.chat.chat_service import ChatService
@@ -12,18 +12,18 @@ chat_service = ChatService(AsyncSessionFactory)
 
 @router.post('', response_model=ChatSchema)
 async def create_chat(add_chat: AddChatSchema = Depends,
-                      user: User = Depends(get_current_user)):
+                      user: User = Depends(get_current_user)) -> ChatSchema:
     chat = await chat_service.create_chat(add_chat)
-    return chat
+    return ChatSchema.from_orm(chat)
 
 
 @router.get('/{chat_id}/messages')
 async def get_last_messages(chat_id: int,
                             quantity: Optional[int] = 15,
-                            user: User = Depends(get_current_user)):
+                            user: User = Depends(get_current_user)) -> MessageSchema:
     if await chat_service.check_chat_member(chat_id, user.id):
         messages = await chat_service.get_last_messages(chat_id, quantity)
-        response = [message.serialize() for message in messages]
+        response = MessageSchema.from_orm(messages)
         return response
     raise HTTPException(400, 'You are not allowed to get messages from this chat')
 

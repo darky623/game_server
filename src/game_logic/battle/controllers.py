@@ -1,4 +1,4 @@
-from game_logic.models.models import Character, Ability, character_items
+from src.game_logic.models.models import Character, Ability, character_items
 
 
 class CharacterController:
