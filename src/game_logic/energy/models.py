@@ -1,10 +1,8 @@
-from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
-from pydantic import BaseModel, Field
 from datetime import datetime
 
-Base = declarative_base()
+from config.database import Base
 
 
 class Energy(Base):

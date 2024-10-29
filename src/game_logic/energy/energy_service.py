@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse
 from config import game_settings
 from config.config import dt_format
 from src.game_logic.energy.models import Energy
-from src.game_logic.energy.schema import EnergySchema, EnergyUpdateSchema
+from src.game_logic.energy.schema import EnergySchema
 
 
 class EnergyService:
@@ -31,7 +31,7 @@ class EnergyService:
                 return EnergySchema.from_orm(energy)
             return EnergySchema.from_orm(result.scalars().first())
 
-    async def update_energy(self, user_id: int, amount: int) -> EnergyUpdateSchema | JSONResponse:
+    async def update_energy(self, user_id: int, amount: int) -> EnergySchema | JSONResponse:
         """
         Обновляет или создает энергию у пользователя
         Args:
@@ -41,21 +41,28 @@ class EnergyService:
             EnergyUpdateSchema | None: Обновленная энергия, либо None если энергии не существует
         """
         async with self.session_factory() as session:
-            energy = await session.execute(select(Energy).where(Energy.user_id == user_id)).scalars().first()
-            if energy:
-                # Прибавляем к энергии нужное количество единиц
-                energy.amount += amount
-                if energy.amount < game_settings.energy['energy_min']:
-                    return JSONResponse(status_code=400, content={"message": "Недостаточно энергии"})
-                if energy.amount > game_settings.energy['energy_max']:
-                    energy.amount = game_settings.energy['energy_max']
-                # Обновляем время ласт апдейта энергии
-                current_time = datetime.now().strftime(dt_format)
-                energy.last_updated = current_time
-                await session.commit()
-                return EnergyUpdateSchema.from_orm(energy)
-            else:
-                energy = Energy(user_id=user_id, amount=amount)
-                await session.add(energy)
-                await session.commit()
-                return EnergyUpdateSchema.from_orm(energy)
+            try:
+
+                energy = await session.execute(select(Energy).where(Energy.user_id == user_id)).scalars().first()
+                if energy:
+                    # Прибавляем к энергии нужное количество единиц
+                    energy.amount += amount
+                    if energy.amount < game_settings.energy['energy_min']:
+
+                        # Если энергии меньше минимального значения, то возвращаем ошибку
+                        return JSONResponse(status_code=400, content={"message": "Недостаточно энергии"})
+                    if energy.amount > game_settings.energy['energy_max']:
+                        energy.amount = game_settings.energy['energy_max']
+                    # Обновляем время ласт апдейта энергии
+                    current_time = datetime.now().strftime(dt_format)
+                    energy.last_updated = current_time
+                    await session.commit()
+                    return EnergySchema.from_orm(energy)
+                else:
+                    energy = Energy(user_id=user_id, amount=amount)
+                    await session.add(energy)
+                    await session.commit()
+                    return EnergySchema.from_orm(energy)
+
+            except Exception as e:
+                return JSONResponse(status_code=500, content={"message": str(e)})
