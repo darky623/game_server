@@ -30,3 +30,10 @@ permissions_for_clan = {
 }
 
 max_of_clan_members_from_rang = {1: 25, 2: 30, 3: 35, 4: 40}
+
+energy = {
+    "energy_min": 0,
+    "energy_max": 100
+}
+
+

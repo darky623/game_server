@@ -8,12 +8,11 @@ class EnergyBase(BaseModel):
 
 
 class EnergySchema(EnergyBase):
-    id: int | None = None # для обновления существующих записей
-    amount: float = Field(..., ge=0, le=100, description="Количество энергии")
+    id: int | None = None  # для обновления существующих записей
+    amount: int = Field(..., ge=0, le=100, description="Количество энергии")
+    last_updated: datetime = Field(
+        default_factory=datetime.now, description="Время последнего обновления"
+    )
 
     class Config:
         orm_mode = True
-
-
-class EnergyUpdateSchema(EnergySchema):
-    last_updated: datetime = Field(default_factory=datetime.now, description="Время последнего обновления")
