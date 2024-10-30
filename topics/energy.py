@@ -1,6 +1,6 @@
 import asyncio
 
-from websoket.topics.abstract import Topic
+from topics.abstract import Topic
 
 
 class EnergyTopic(Topic):
