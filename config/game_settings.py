@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 permissions_for_clan = {
     "Head": [
         "invite_users",
@@ -35,5 +37,8 @@ energy = {
     "energy_min": 0,
     "energy_max": 100
 }
+energy_per_battle = {1: 10}
+time_add_one_energy = timedelta(seconds=5)
+energy_per_time = {time_add_one_energy: 1}
 
 

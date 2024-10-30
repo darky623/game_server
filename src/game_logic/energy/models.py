@@ -10,6 +10,7 @@ class Energy(Base):
     id = Column(Integer, primary_key=True, index=True)
     amount = Column(Integer, nullable=False, default=100)
     last_updated = Column(DateTime, nullable=False, default=datetime.now)
+    next_update = Column(DateTime, nullable=False)
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     user = relationship("User", back_populates="energy")

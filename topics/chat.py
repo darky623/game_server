@@ -1,8 +1,6 @@
 import asyncio
 
-from starlette.websockets import WebSocket
-
-from websoket.topics.abstract import Topic
+from topics.abstract import Topic
 
 
 class ChatTopic(Topic):
