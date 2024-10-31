@@ -9,6 +9,7 @@ from src.game_logic.routers.races_router import router as races_router
 from src.game_logic.routers.items_router import router as items_router
 from src.game_logic.routers.abilities_router import router as abilities_router
 from src.game_logic.routers.character_router import router as characters_router
+from src.game_logic.battle.router import router as battle_router
 
 
 router = APIRouter(prefix='/game_logic', tags=['Game Logic'])
@@ -21,3 +22,4 @@ router.include_router(runes_router)
 router.include_router(characters_router)
 router.include_router(biome_router)
 router.include_router(player_progress_router)
+router.include_router(battle_router)

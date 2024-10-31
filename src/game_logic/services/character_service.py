@@ -35,6 +35,11 @@ class CharacterService(Service):
             raise HTTPException(400, detail='No character with such id')
         return character
 
+    async def get_many_by_ids(self, ids: list[int]):
+        result = await self.session.execute(select(Character).where(Character.id.in_(ids)))
+        characters = result.unique().scalars().all()
+        return characters
+
     async def update(self, id: int, character_data: Character):
         result = await self.session.execute(select(Character).where(Character.id == id))
         character = result.scalars().first()

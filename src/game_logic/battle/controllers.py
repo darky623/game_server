@@ -1,6 +1,8 @@
+import enum
 from random import random
 import random
 from src.game_logic.models.models import Character, Ability, character_items, SummandParams
+from src.game_logic.schemas.params_schema import AddSummandParamsSchema
 
 
 class CharacterController:
@@ -19,21 +21,36 @@ class CharacterController:
         self.evasion = self.base_params.evasion
         self.resistance = self.base_params.resistance
         self.speed = self.base_params.speed
-
+        self.id_in_battle = None
         self.effects = []
 
     def attack(self):
-        target = self.__choose_target()
+        action = {
+            "initiator": self.id_in_battle,
+        }
         ability_to_use = self.__get_ability_to_attack()
         if not ability_to_use:
+            target = self.__choose_random_enemy()
             result = self.physical_attack(target)
-        else: result = self.ability_attack(ability_to_use, target)
+            action['targets'] = [target.id_in_battle]
+            action['ability'] = 'physical attack'
+            return result
+        targets = self._select_target(ability_to_use)
+        action['targets'] = [target.id_in_battle for target in targets]
+        action['ability'] = ability_to_use.get_name()
+        results = []
+        for target in targets:
+            results.append(ability_to_use.execute(self, target))
+        action['result'] = results
+        action['icon'] = ability_to_use.icon
+        action['visual'] = ability_to_use.visual
 
-        return result
+        return action
 
     def physical_attack(self, target: 'CharacterController'):
         damage = self.calculate_damage()
-        result = target.receive_damage(damage)
+        target.receive_damage(damage)
+        result = target.serialize()
         return result
 
     def ability_attack(self, ability: 'AbilityController', target: 'CharacterController'):
@@ -94,10 +111,12 @@ class CharacterController:
         result = []
         result.extend([AbilityController(ability) for ability in self._character.character_class.abilities])
         result.extend([AbilityController(ability) for ability in self._character.race.abilities])
-        result.extend(AbilityController(ability) for ability in self._character.runes.abilities)
+        result.extend((AbilityController(ability) for ability in rune.abilities) for rune in self._character.runes)
         return result
 
-    def __choose_target(self) -> 'CharacterController':
+    def __choose_random_enemy(self) -> 'CharacterController':
+        print(self.enemies)
+        print(self.teammates)
         return random.choice(self.enemies)
 
     def __choose_teammate(self) -> 'CharacterController':
@@ -111,8 +130,8 @@ class CharacterController:
 
         result *= (self._character.character_class.multiplier_params *
                    self._character.race.multiplier_params *
-                   self._character.subclass.summand_params)
-        result += sum([item.summand_params for item in self._character.items])
+                   self._character.subclass.multiplier_params)
+        # result += sum([item.summand_params for item in self._character.items])
         for item in self._character.items:
             result *= item.multiplier_params
 
@@ -124,20 +143,94 @@ class CharacterController:
         for ability in self.passive_abilities:
             ability.decrease_cooldown()
 
+    def _select_target(self, ability: 'AbilityController') -> list['CharacterController']:
+        try:
+            rule_parts = ability.get_target_rule().split(':')
+            target_type = TargetType(rule_parts[0])
+            if TargetType.SELF == TargetType.SELF: return [self]
+            if rule_parts[1] == 'all':
+                quantity = len(self.enemies) if target_type == TargetType.ENEMY else len(self.teammates)
+            else: quantity = int(rule_parts[1])
+            selection_method = rule_parts[2] if len(rule_parts) > 2 else None
+        except:
+            return []
+
+        if target_type == TargetType.MATE:
+            return self._select_teammates(quantity, selection_method)
+        elif target_type == TargetType.ENEMY:
+            return self._select_enemies(quantity, selection_method)
+
+        return []
+
+    def _select_enemies(self, quantity: int, method: str):
+        if method:
+            params = method.split(':')
+            key = params[0]
+            parameter = params[1] if len(params) > 1 else None
+            if key == 'random':
+                return random.sample(self.enemies, min(quantity, len(self.enemies)))
+            if key == 'highest' or key == 'lowest':
+                return sorted(self.enemies, key=lambda e: e.__dict__().get(parameter), reverse=(key == 'highest'))[:quantity]
+        return random.sample(self.enemies, min(quantity, len(self.enemies)))
+
+    def _select_teammates(self, quantity: int, method: str):
+        if method:
+            params = method.split(':')
+            key = params[0]
+            parameter = params[1] if len(params) > 1 else None
+            if key == 'random':
+                return random.sample(self.teammates, min(quantity, len(self.teammates)))
+            if key == 'highest' or key == 'lowest':
+                return sorted(self.teammates, key=lambda e: e.__dict__().get(parameter), reverse=(key == 'highest'))[:quantity]
+        return random.sample(self.teammates, min(quantity, len(self.teammates)))
+
     def set_teammates(self, teammates: list['CharacterController']):
         self.teammates = teammates
 
     def set_enemies(self, enemies: list['CharacterController']):
         self.enemies = enemies
 
+    def set_id_in_battle(self, id_in_battle: int):
+        self.id_in_battle = id_in_battle
+
+    def get_class(self):
+        return self._character.character_class
+
+    def serialize(self):
+        return {
+            "id": self.id_in_battle,
+            "name": self._character.name,
+            "health": self.health,
+            "class": self._character.character_class.title,
+            "subclass": self._character.subclass.title,
+            "stars": self._character.stardom,
+            "lvl": self._character.level,
+            "params": AddSummandParamsSchema.from_orm(self.base_params),
+            "imposed": self.effects
+        }
+
 
 class AbilityController:
     def __init__(self, ability: Ability):
         self._ability = ability
+        self._target = ability.target
         self.cooldown = 0
 
     def execute(self, user: CharacterController, target: CharacterController):
-        action = {'ability_name': self._ability.name}
+        damage_result, healing_result = None, None
+        if self._ability.damage > 0:
+            damage_result = target.receive_damage(self._ability.damage)
+        if self._ability.healing > 0:
+            healing_result = target.receive_healing(self._ability.healing)
+        # ability_result = {
+        #     'ability_name': self._ability.name,
+        #     'damage': damage_result,
+        #     'healing': healing_result,
+        #     'visual': self._ability.visual,
+        #     'icon': self._ability.icon,
+        #     'result': target.serialize()
+        # }
+        return target.serialize()
 
 
     def is_successful(self):
@@ -187,9 +280,31 @@ class AbilityController:
     def get_chance(self):
         return self._ability.chance
 
+    def get_target_rule(self):
+        return self._target
+
+    def get_effect(self):
+        return self._ability.effect
+
+    def get_name(self):
+        return self._ability.name
+
+    @property
+    def icon(self):
+        return self._ability.icon
+
+    @property
+    def visual(self):
+        return self._ability.visual
+
 
 class EffectController:
     def __init__(self):
         ...
 
+
+class TargetType(enum.Enum):
+    SELF = 'self'
+    ENEMY = 'enemy'
+    MATE = 'mate'
 

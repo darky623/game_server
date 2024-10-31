@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table, Enum, orm
+from email.policy import default
+
+from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table, Enum, orm, ColumnElement
 from sqlalchemy.orm import relationship
 from config.database import Base
 import enum
@@ -67,19 +69,6 @@ class Character(Base):
 
     base_params = None
     abilities = []
-
-    def calculate_base_params(self):
-        result = self.summand_params * (self.multiplier_params * self.level)
-        result += self.character_class.summand_params + self.race.summand_params
-        result *= self.character_class.multiplier_params * self.race.multiplier_params
-        result += sum([item.summand_params for item in self.items])
-        for item in self.items:
-            result *= item.multiplier_params
-
-        self.base_params = result
-        return self.base_params
-
-    def definite_abilities(self): ...
 
     def serialize(self):
         return {
@@ -232,6 +221,8 @@ class SummandParams(Base):
                 resistance=self.resistance * other,
                 evasion=self.evasion * other,
             )
+        if isinstance(other, MultiplierParams):
+            return other * self
         return NotImplemented
 
 
@@ -310,6 +301,7 @@ class Ability(Base):
 
     name = Column(String)
     icon = Column(String)
+    visual = Column(String, default='noetic')
 
     tier = Column(Integer, nullable=False, default=0)
 
@@ -332,6 +324,8 @@ class Ability(Base):
     summoned_character = relationship("Character")
     summoned_quantity = Column(Integer, default=0)
 
+    target = Column(String, default="enemy:1:random")
+    effect = Column(String)
     trigger_condition = Column(Enum(TriggerCondition), nullable=False)
 
     damage = Column(Integer, default=0)

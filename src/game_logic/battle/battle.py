@@ -1,7 +1,8 @@
 import json
-import random
+from fastapi import HTTPException
+from src.game_logic.battle.schemas import RoundLogSchema, BattleResultSchema
 
-from src.game_logic.battle.controllers import AbilityController, CharacterController
+from src.game_logic.battle.controllers import CharacterController
 
 
 class Battle:
@@ -9,30 +10,52 @@ class Battle:
                  team1: list[CharacterController],
                  team2: list[CharacterController],
                  max_rounds: int = 10):
+        if not len(team1) or not len(team2):
+            raise HTTPException(status_code=400, detail='В команде должен быть хотя бы один герой')
+
         self.team1 = team1
         self.team2 = team2
         self.max_rounds = max_rounds
         self.current_round = 0
-        self.order = 0 # 0 - 1 команда, 1 - вторая команда
+        self.order = False # 0 - первая команда, 1 - вторая команда
         self.battle_log = BattleLog()
 
-    def start(self):
-        while not self.is_battle_over():
-            self.play_round()
+        self.rounds = []
+        self.set_battle_ids()
+        self.__set_teammates()
 
-        self.export_log()
+    def start(self):
+        print(self.team1, self.team2)
+        while not self.is_battle_over():
+            self.rounds.append(self.play_round())
+
+        return BattleResultSchema(battle_log=self.rounds, result=self.__get_result())
 
     def get_turn_order(self):
         return self.team1 if self.order == 0 else self.team2
 
     def play_round(self):
-        for character in self.get_turn_order():
-            if character.health > 0:
-                result = character.attack()
-                self.battle_log.log_event({'usage': f'{character._character.name} использовал {ability_controller._ability.name}'})
+        round = []
+        teams = [self.team1, self.team2]
+        total_turns = len(self.team1) + len(self.team2)
+        turns_taken = 0
+        while turns_taken < total_turns:
+            current_team = teams[self.order]
+            for character in current_team:
+                if character.health > 0:
+                    step = character.attack()
+                    round.append(step)
+                    self.order = 1 - self.order
+                    turns_taken += 1
+                    break
+                else:
+                    continue
+
+        self.current_round += 1
+        return RoundLogSchema(steps=round)
 
     def is_battle_over(self):
-        return all(c.health <= 0 for c in self.team1) or all(c.health <= 0 for c in self.team2)
+        return all(c.health <= 0 for c in self.team1) or all(c.health <= 0 for c in self.team2) or (len(self.rounds) >= self.max_rounds)
 
     def __set_teammates(self):
         for character in self.team1:
@@ -42,9 +65,22 @@ class Battle:
             character.set_enemies(self.team1)
             character.set_teammates([ch for ch in self.team2 if ch != character])
 
+    def set_battle_ids(self):
+        i = 0
+        for character in self.team1:
+            character.set_id_in_battle(i)
+            i += 1
+        for character in self.team2:
+            character.set_id_in_battle(i)
+            i += 1
 
     def export_log(self):
         print(self.battle_log.export_to_json())
+
+    def __get_result(self):
+        if self.is_battle_over():
+            return {'winner': ('team_1' if any(c.health > 0 for c in self.team1) and all(c.health <= 0 for c in self.team2) else 'team_2')}
+        return {'winner': 'team_2'}
 
 
 class BattleLog:
