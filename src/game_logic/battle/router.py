@@ -10,7 +10,7 @@ from src.game_logic.battle.controllers import CharacterController
 from src.game_logic.battle.schemas import BattleSchema
 from src.game_logic.services.general import Services
 
-router = APIRouter(prefix='/battle')
+router = APIRouter(prefix='/battle', tags=['Battle'])
 
 
 @router.post('')
