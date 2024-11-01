@@ -32,4 +32,4 @@ class Team(Base):
     __tablename__ = "teams"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    characters = Column('Character', secondary=characters_teams, lazy='joined')
+    characters = relationship('Character', secondary=characters_teams, lazy='joined')
