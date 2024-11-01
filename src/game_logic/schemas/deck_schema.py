@@ -10,32 +10,22 @@ from src.game_logic.schemas.race_schema import RaceSchema
 
 
 class DeckCharacter(BaseModel):
+    id: int
     deck_id: int
-    character: CharacterSchema
+    character_id: int
     position: int
+    character: CharacterSchema
 
     class Config:
-        json_schema_extra = {
-            "example":
-                {"deck_id": 1,
-                 "position": 1,
-                 "character": [
-                         {"id": 1,
-                          "abilities": list[AbilitySchema],
-                          "items": list[ItemSchema],
-                          "race": RaceSchema,
-                          "character_class": CharacterClassSchema,
-                          "subclass": CharacterSubclassSchema
-                          },],
-                 }
-        }
+        from_attributes = True
 
 
 class Deck(BaseModel):
+    id: int
     user_id: int
     is_active: bool = False
     deck_index: int
-    characters: List[DeckCharacter] = []
+    characters: List[DeckCharacter]
 
     class Config:
         from_attributes = True
@@ -45,8 +35,8 @@ class Deck(BaseModel):
                 "is_active": False,
                 "deck_index": 1,
                 "characters": [
-                    {"deck_id": 1, "character_id": 123, "position": 1},
-                    {"deck_id": 1, "character_id": 456, "position": 2},
+                    {"deck_id": 1, "character": {"id": 123}, "position": 1},
+                    {"deck_id": 1, "character": {"id": 456}, "position": 2},
                 ],
             }
         }
