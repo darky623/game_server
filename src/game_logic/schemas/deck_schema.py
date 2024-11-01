@@ -29,14 +29,3 @@ class Deck(BaseModel):
 
     class Config:
         from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "user_id": 1,
-                "is_active": False,
-                "deck_index": 1,
-                "characters": [
-                    {"deck_id": 1, "character": {"id": 123}, "position": 1},
-                    {"deck_id": 1, "character": {"id": 456}, "position": 2},
-                ],
-            }
-        }
