@@ -23,9 +23,9 @@ if config.config_file_name is not None:
 from auth.models import *
 
 from src.chat.models import *
+from src.game_logic.models.models import *
 from src.game_logic.models.deck_models import *
 from src.game_logic.models.biome_models import *
-from src.game_logic.models.models import *
 from src.friends.models import *
 from src.clan.models import *
 from config.database import Base
