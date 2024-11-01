@@ -10,16 +10,18 @@ class EnergyBase(BaseModel):
 
 
 class EnergySchema(EnergyBase):
-    id: int | None = None  # для обновления существующих записей
-    amount: int = Field(..., ge=0, le=100, description="Количество энергии")
+    id: int  # для обновления существующих записей
+    amount: int = Field(..., ge=game_settings.energy["energy_min"],
+                        le=game_settings.energy["energy_max"],
+                        description="Количество энергии")
     last_updated: datetime = Field(
         default_factory=datetime.now,
         description="Время последнего обновления"
     )
-    next_update: datetime = Field(
+    next_update: datetime | None = Field(
         default_factory=lambda: datetime.now() + game_settings.time_add_one_energy,
         description="Время следующего обновления"
     )
 
     class Config:
-        orm_mode = True
+        from_attributes = True

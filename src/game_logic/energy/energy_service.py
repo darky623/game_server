@@ -3,6 +3,8 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy import select
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
+
 from config import game_settings
 from config.config import dt_format
 from config.game_settings import energy_per_time, time_add_one_energy
@@ -24,8 +26,8 @@ async def handle_exceptions(action):
 def error_handler(func):
     async def wrapper(*args, **kwargs):
         result = await handle_exceptions(lambda: func(*args, **kwargs))
-        if isinstance(result, JSONResponse) and result.status_code == 500:
-            raise HTTPException(status_code=500, detail=result.content["message"])
+        if isinstance(result, dict) and result["status_code"] == 500:
+            raise HTTPException(status_code=500, detail=result["message"])
         return result
 
     return wrapper
@@ -35,27 +37,32 @@ class EnergyService:
     def __init__(self, session_factory):
         self.session_factory = session_factory
 
-    async def _create_energy(self, user_id: int):
+    @staticmethod
+    async def _create_energy(user_id: int, session):
         """
         Создает энергию пользователя
         Args:
             user_id (int): ID пользователя
         """
-        async with self.session_factory() as session:
-            energy = self._get_energy(user_id)
-            if energy:
-                return EnergySchema.from_orm()
+        try:
             energy = Energy(user_id=user_id, amount=game_settings.energy["energy_max"])
             session.add(energy)
             await session.commit()
             return EnergySchema.from_orm(energy)
+        except Exception as e:
+            logger.error(f"Error creating energy: {e}")
+            return None
 
-    async def _get_energy(self, user_id: int):
-        async with self.session_factory() as session:
+    @staticmethod
+    async def _get_energy(user_id: int, session):
+        try:
             result = await session.execute(
                 select(Energy).where(Energy.user_id == user_id)
             )
             return result.scalars().first()
+        except Exception as e:
+            logger.error(f"Error getting energy: {e}")
+            return None
 
     async def energy_is_full(self, user_id: int) -> bool:
         """
@@ -65,12 +72,13 @@ class EnergyService:
         Returns:
             bool: True, если энергия полна, иначе False
         """
-        energy = await self._get_energy(user_id)
-        return (
-            energy is not None and energy.amount == game_settings.energy["energy_max"]
-        )
+        async with self.session_factory() as session:
 
-    @error_handler
+            energy = await self._get_energy(user_id, session)
+            return (
+                    energy is not None and energy.amount == game_settings.energy["energy_max"]
+            )
+
     async def planing_update_energy(self, user_id: int) -> EnergySchema | JSONResponse:
         """
         Обновление энергии на фиксированное количество единиц game_settings.energy_per_time[time_add_one_energy]
@@ -82,28 +90,31 @@ class EnergyService:
             JSONResponse: Ошибка обновления
         """
         async with self.session_factory() as session:
-
-            energy = await self._get_energy(user_id)
+            energy = await self._get_energy(user_id, session)
             if not energy:
-                await self._create_energy(user_id)
-                energy = await self._get_energy(user_id)
-    # Присваиваем мин. значение между максимумом энергии и (текущей энергией пользователя+прибавка за 1 единицу времени)
-            energy.amount = min(
-                game_settings.energy["energy_max"],
-                energy.amount + game_settings.energy_per_time[time_add_one_energy],
-            )
-            # Изменяем значение обновление на нынешнее время
-            energy.last_updated = datetime.now().strftime(dt_format)
-            # Изменяем значение следующего обновления на (текущее время + время за которое прибавляется 1 единица)
-            energy.next_update = (
-                datetime.now() + game_settings.time_add_one_energy
-            ).strftime(dt_format)
-            if energy.amount == game_settings.energy["energy_max"]:
-                energy.next_update = energy.last_updated
-            await session.commit()
+                await self._create_energy(user_id, session)
+                energy = await self._get_energy(user_id, session)
+
+            current_time = datetime.now()
+
+            if current_time >= energy.next_update:
+                # Присваиваем мин. значение между макс энергией и (текущей энергией юзера+прибавка за 1 единицу времени)
+                energy.amount = min(
+                    game_settings.energy["energy_max"],
+                    energy.amount + game_settings.energy_per_time[time_add_one_energy],
+                )
+                # Изменяем значение обновление на нынешнее время
+                energy.last_updated = current_time
+                # Изменяем значение следующего обновления на (текущее время + время за которое прибавляется 1 единица)
+                energy.next_update = current_time + game_settings.time_add_one_energy
+
+                if energy.amount == game_settings.energy["energy_max"]:
+                    energy.next_update = energy.last_updated
+
+                await session.commit()
+
             return EnergySchema.from_orm(energy)
 
-    @error_handler
     async def get_energy(self, user_id: int) -> EnergySchema | JSONResponse:
         """
         Возвращает энергию пользователя, если ее нет - создаёт энергию
@@ -113,44 +124,49 @@ class EnergyService:
             EnergySchema: Энергия пользователя
         """
         async with self.session_factory() as session:
-            energy = await self._get_energy(user_id)
-            if not energy:
-                energy = self._create_energy(user_id)
-            await session.add(energy)
-            await session.commit()
-            return EnergySchema.from_orm(energy)
+            try:
+                energy = await self._get_energy(user_id, session)
+                if not energy:
+                    energy = await self._create_energy(user_id, session)
+                session.add(energy)
+                await session.commit()
+                return EnergySchema.from_orm(energy)
+            except SQLAlchemyError as e:
+                logger.error(f"Error gettin energy: {e}")
+                return JSONResponse(status_code=500, content={"message": str(e)})
 
-    @error_handler
     async def update_energy(
-        self, user_id: int, amount: int
+            self, user_id: int, amount: int
     ) -> EnergySchema | JSONResponse:
         """
         Обновляет или создает энергию у пользователя
         Args:
             user_id (int): ID пользователя
-            amount (int): Новое количество энергии(может быть отрицательным)
+            amount (int): Изменение количества энергии (может быть отрицательным)
         Returns:
-            EnergyUpdateSchema | JSONResponse: Обновленная энергия, либо  JSONResponse с сообщением об ошибке
+            EnergySchema | JSONResponse: Обновленная энергия, либо JSONResponse с сообщением об ошибке
         """
         async with self.session_factory() as session:
-
-            energy = await self._get_energy(user_id)
+            energy = await self._get_energy(user_id, session)
             if not energy:
                 return JSONResponse(
                     status_code=404, content={"message": "Energy not found"}
                 )
 
-            energy.amount += amount
-            if energy.amount > game_settings.energy["energy_max"]:
-                energy.amount = game_settings.energy["energy_max"]
-            elif energy.amount < 0:
-                energy.amount = 0
+            # Проверяем, достаточно ли энергии для снятия
+            if amount < 0 and abs(amount) > energy.amount:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "message": f"Insufficient energy. Current energy: {energy.amount}, Requested: {abs(amount)}"}
+                )
 
-            energy.last_updated = datetime.now().strftime(dt_format)
-            energy.next_update = (
-                datetime.now() + game_settings.energy["time_add_one_energy"]
-            ).strftime(dt_format)
-            await session.add(energy)
+            new_amount = energy.amount + amount
+            energy.amount = max(0, min(new_amount, game_settings.energy["energy_max"]))
+
+            energy.last_updated = datetime.now()
+            energy.next_update = datetime.now() + game_settings.time_add_one_energy
+            session.add(energy)
 
             await session.commit()
             return EnergySchema.from_orm(energy)
