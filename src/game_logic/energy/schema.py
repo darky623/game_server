@@ -11,13 +11,9 @@ class EnergyBase(BaseModel):
 
 class EnergySchema(EnergyBase):
     id: int  # для обновления существующих записей
-    amount: int = Field(..., ge=game_settings.energy["energy_min"],
-                        le=game_settings.energy["energy_max"],
-                        description="Количество энергии")
-    last_updated: datetime = Field(
-        default_factory=datetime.now,
-        description="Время последнего обновления"
-    )
+    amount: int = Field(..., description="Количество энергии")
+    last_updated: datetime = Field(..., description="Время последнего обновления")
+    overmax: bool = Field(..., description="Признак переполнения энергии")
 
     class Config:
         from_attributes = True

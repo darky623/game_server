@@ -66,7 +66,7 @@ class Character(Base):
     avatar = Column(String)
     stardom = Column(Integer)
     level = Column(Integer)
-
+    power = Column(Integer, default=0)
     base_params = None
     abilities = []
 

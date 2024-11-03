@@ -21,18 +21,9 @@ async def get_energy(user: User = Depends(get_current_user)) -> EnergySchema | J
 @error_handler
 @router.post("/", dependencies=[Depends(get_current_user)], response_model=None)
 async def update_energy(amount: int,
+                        overmax: bool = False,
                         user: User = Depends(get_current_user)
                         ) -> EnergySchema | JSONResponse:
-    return await energy_service.update_energy(user_id=user.id, amount=amount)
+    return await energy_service.update_energy(user_id=user.id, amount=amount, overmax=overmax)
 
 
-@error_handler
-@router.get("/is_full", dependencies=[Depends(get_current_user)])
-async def energy_is_full(user: User = Depends(get_current_user)) -> bool:
-    return await energy_service.energy_is_full(user.id)
-
-
-@error_handler
-@router.post("/plan_update", dependencies=[Depends(get_current_user)], response_model=None)
-async def planing_update_energy(user: User = Depends(get_current_user)) -> EnergySchema | JSONResponse:
-    return await energy_service.planing_update_energy(user.id)
