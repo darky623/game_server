@@ -145,11 +145,10 @@ class EnergyService:
                     energy.amount = potential_energy_with_overmax + amount
                     energy.overmax = True
                 else:
-                    if energy.amount < self.max_energy:
-                        energy.overmax = False
+
                     if amount < 0:
                         # Проверяем, достаточно ли энергии для списания
-                        if energy.amount + amount < 0:
+                        if potential_energy + amount < 0:
                             return JSONResponse(status_code=400, content={"message": "Not enough energy"})
                         energy.amount += amount + energy_gained
                     else:
@@ -158,6 +157,8 @@ class EnergyService:
                             energy.amount = potential_energy_with_overmax + amount
                         else:
                             energy.amount = min(potential_energy + amount, self.max_energy)
+                if energy.amount < self.max_energy:
+                    energy.overmax = False
                 energy.last_updated = now
 
                 await session.commit()
