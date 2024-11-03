@@ -132,41 +132,56 @@ class EnergyService:
                 await session.commit()
                 return EnergySchema.from_orm(energy)
             except SQLAlchemyError as e:
-                logger.error(f"Error gettin energy: {e}")
+                logger.error(f"Error getting energy: {e}")
                 return JSONResponse(status_code=500, content={"message": str(e)})
 
-    async def update_energy(
-            self, user_id: int, amount: int
-    ) -> EnergySchema | JSONResponse:
+    async def update_energy(self,
+                            user_id: int,
+                            amount: int,
+                            overmax: bool = False
+                            ) -> EnergySchema | JSONResponse:
         """
-        Обновляет или создает энергию у пользователя
+        Обновляет энергию пользователя
+        1. Функция изменяет фактическое количество энергии, после того как проверяет, достаточно ли ее потенциально.
+        2. Расчет потенциальной энергии основывается на времени, прошедшем с последнего обновления.
+        3. overmax=True надо вызывать только когда происходит добавление энергии больше максимума, например для покупки
         Args:
             user_id (int): ID пользователя
             amount (int): Изменение количества энергии (может быть отрицательным)
+            overmax (bool): Может быть True, если надо добавить больше максимума энергии
         Returns:
             EnergySchema | JSONResponse: Обновленная энергия, либо JSONResponse с сообщением об ошибке
         """
         async with self.session_factory() as session:
             energy = await self._get_energy(user_id, session)
             if not energy:
-                return JSONResponse(
-                    status_code=404, content={"message": "Energy not found"}
-                )
+                await self._create_energy(user_id, session)
+                energy = await self._get_energy(user_id, session)
+            now = datetime.now()
+            # Прошедшее время с ласт апдейта
+            time_passed = now - energy.last_updated
+            # Энергия, которая могла бы накопиться если бы прошло game_settings.time_add_one_energy времени
+            energy_gained = time_passed.total_seconds() // game_settings.time_add_one_energy.total_seconds()
+            if overmax:
+                energy.amount += amount
+                energy.last_updated = now
+            else:
+                if energy.amount > game_settings.energy["energy_max"]:
+                    energy.amount += amount
+                    energy.last_updated = now
+                else:
+                    potential_energy = min(energy.amount + energy_gained, game_settings.energy["energy_max"])
 
-            # Проверяем, достаточно ли энергии для снятия
-            if amount < 0 and abs(amount) > energy.amount:
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "message": f"Insufficient energy. Current energy: {energy.amount}, Requested: {abs(amount)}"}
-                )
-
-            new_amount = energy.amount + amount
-            energy.amount = max(0, min(new_amount, game_settings.energy["energy_max"]))
-
-            energy.last_updated = datetime.now()
-            energy.next_update = datetime.now() + game_settings.time_add_one_energy
-            session.add(energy)
-
+                    if abs(amount) > potential_energy:
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "message": f"Недостаточно энергии. Потенциальная энергия: {potential_energy},"
+                                           f" требуемая энергия: {abs(amount)}"
+                            }
+                        )
+                    # Обновляем время последнего обновления
+                    energy.amount = potential_energy + amount
+                    energy.last_updated = now
             await session.commit()
             return EnergySchema.from_orm(energy)

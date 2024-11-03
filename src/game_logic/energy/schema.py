@@ -18,10 +18,6 @@ class EnergySchema(EnergyBase):
         default_factory=datetime.now,
         description="Время последнего обновления"
     )
-    next_update: datetime | None = Field(
-        default_factory=lambda: datetime.now() + game_settings.time_add_one_energy,
-        description="Время следующего обновления"
-    )
 
     class Config:
         from_attributes = True
