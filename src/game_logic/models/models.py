@@ -64,7 +64,7 @@ class Character(Base):
     avatar = Column(String)
     stardom = Column(Integer)
     level = Column(Integer)
-
+    power = Column(Integer, default=0)
     base_params = None
     abilities = []
 
@@ -78,6 +78,9 @@ class Character(Base):
 
         self.base_params = result
         return self.base_params
+
+    def calculate_power(self):
+        pass
 
     def definite_abilities(self): ...
 
