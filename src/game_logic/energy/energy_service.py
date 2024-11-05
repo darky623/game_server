@@ -116,6 +116,7 @@ class EnergyService:
             в случае любого *обязательного* повышения энергии, н-р, за просмотр рекламы можно получить 10ед энергии
             если у пользователя 95ед энергии то он получит только 5 единиц если не указать явно overmax=True).
             Т.Е. Если энергию надо повысить, но ее значение не должно превышать 100 единиц, overmax=False
+
         Returns:
             EnergySchema | JSONResponse: Обновленная энергия, либо JSONResponse с сообщением об ошибке
         """
@@ -135,22 +136,30 @@ class EnergyService:
                     energy_gained = min(
                         time_passed.total_seconds() // game_settings.time_add_one_energy.total_seconds(),
                         self.max_energy)
-                # Потенциальное количество энергии которое могло бы накопиться в общем и целом
+                # Потенциальное количество энергии которое могло бы накопиться если бы она тикала каждую ед. времени
                 potential_energy = min(energy.amount + energy_gained, self.max_energy)
+                # Потенциальное количество энергии если у поль-ля больше чем максимум энергии
                 potential_energy_with_overmax = energy.amount + energy_gained
-
+                # Если надо добавить больше максимума энергии
                 if overmax:
+                    # Запрещаем отнимать энергию если овермакс передаваемый в функцию == True
                     if amount < 0:
                         return JSONResponse(status_code=400, content={"message": "You should start from 0"})
+                    # Добавляем энергию
                     energy.amount = potential_energy_with_overmax + amount
                     energy.overmax = True
                 else:
-
+                    # Вычитание энергии
                     if amount < 0:
-                        # Проверяем, достаточно ли энергии для списания
+                        # Проверяем, достаточно ли энергии для списания(больше 100 списать нельзя)
                         if potential_energy + amount < 0:
                             return JSONResponse(status_code=400, content={"message": "Not enough energy"})
-                        energy.amount += amount + energy_gained
+                        # Списываем энергию
+                        if energy.overmax:
+                            energy.amount += amount + energy_gained
+                        else:
+                            energy.amount = potential_energy + amount
+
                     else:
                         # Добавляем энергию, но не превышаем максимум, учитываем что энергии может быть больше чем макс
                         if energy.overmax:
@@ -159,6 +168,8 @@ class EnergyService:
                             energy.amount = min(potential_energy + amount, self.max_energy)
                 if energy.amount < self.max_energy:
                     energy.overmax = False
+                elif energy.amount >= self.max_energy:
+                    energy.overmax = True
                 energy.last_updated = now
 
                 await session.commit()
