@@ -168,7 +168,7 @@ class EnergyService:
                             energy.amount = min(potential_energy + amount, self.max_energy)
                 if energy.amount < self.max_energy:
                     energy.overmax = False
-                elif energy.amount >= self.max_energy:
+                elif energy.amount > self.max_energy:
                     energy.overmax = True
                 energy.last_updated = now
 
@@ -177,3 +177,4 @@ class EnergyService:
             except SQLAlchemyError as e:
                 logger.error(f"Error updating energy: {e}")
                 return JSONResponse(status_code=500, content={"message": str(e)})
+
