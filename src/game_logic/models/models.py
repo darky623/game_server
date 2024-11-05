@@ -70,6 +70,24 @@ class Character(Base):
     base_params = None
     abilities = []
 
+    def calculate_power(self):
+        # Высчитывает мощность героя по формуле stardom*1000 + level*1,01 + ability_power(зависит от прокачки)
+        tier_power_mapping = {
+            1: 10,
+            2: 250,
+            3: 500,
+            4: 750,
+            5: 1000,
+        }
+
+        ability_power = 0
+        active_abilities = self.get_active_abilities()
+        for tier, ability_controller in active_abilities.items():
+            ability_power += tier_power_mapping.get(tier, 0)
+
+        self.power = self.stardom * 1000 + self.level * 1.01 + ability_power
+        return self.power
+
     def serialize(self):
         return {
             "id": self.id,
