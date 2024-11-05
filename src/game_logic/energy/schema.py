@@ -11,9 +11,9 @@ class EnergyBase(BaseModel):
 
 class EnergySchema(EnergyBase):
     id: int  # для обновления существующих записей
-    amount: int = Field(..., description="Количество энергии")
-    last_updated: datetime = Field(..., description="Время последнего обновления")
-    overmax: bool = Field(..., description="Признак переполнения энергии")
+    amount: int
+    last_updated: datetime
+    overmax: bool
 
     class Config:
         from_attributes = True
