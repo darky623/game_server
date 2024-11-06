@@ -56,7 +56,6 @@ async def check_auth_token(token: str):
             AuthSession.token == token, AuthSession.status == 'active')
         )
         auth = result.scalars().first()
-        print(auth)
         if auth:
             if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
                 user = auth.user
