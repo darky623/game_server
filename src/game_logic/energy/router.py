@@ -13,12 +13,6 @@ energy_service = EnergyService(AsyncSessionFactory)
 
 
 @error_handler
-@router.get("/", dependencies=[Depends(get_current_user)], response_model=None)
-async def get_energy(user: User = Depends(get_current_user)) -> EnergySchema | JSONResponse:
-    return await energy_service.get_energy(user.id)
-
-
-@error_handler
 @router.post("/", dependencies=[Depends(get_current_user)], response_model=None)
 async def update_energy(amount: int,
                         overmax: bool = False,
