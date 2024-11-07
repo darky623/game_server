@@ -7,10 +7,11 @@ class BattleSchema(BaseModel):
 
 
 class RoundLogSchema(BaseModel):
+    id: int
     steps: list
 
 
 class BattleResultSchema(BaseModel):
-    battle_log: list[RoundLogSchema]
+    rounds: list[RoundLogSchema]
     result: dict | int
 

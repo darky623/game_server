@@ -1,6 +1,7 @@
 import enum
-from random import random
 import random
+import ast
+from src.game_logic.models import TriggerCondition
 from src.game_logic.models.models import Character, Ability, character_items, SummandParams
 from src.game_logic.schemas.params_schema import AddSummandParamsSchema
 
@@ -22,11 +23,11 @@ class CharacterController:
         self.resistance = self.base_params.resistance
         self.speed = self.base_params.speed
         self.id_in_battle = None
-        self.effects = []
+        self.effects = {'immunity': [], 'effects': []}
 
     def attack(self):
         action = {
-            "initiator": self.id_in_battle,
+            'initiator': self.id_in_battle,
         }
         ability_to_use = self.__get_ability_to_attack()
         if not ability_to_use:
@@ -37,7 +38,7 @@ class CharacterController:
             return result
         targets = self._select_target(ability_to_use)
         action['targets'] = [target.id_in_battle for target in targets]
-        action['ability'] = ability_to_use.get_name()
+        action['ability'] = ability_to_use.name
         results = []
         for target in targets:
             results.append(ability_to_use.execute(self, target))
@@ -57,10 +58,14 @@ class CharacterController:
         action = ability.execute(self, target)
         return action
 
-    def use_passive_abilities(self):
+    def use_passive_abilities(self, condition: TriggerCondition | str = None):
         result = []
+        if condition:
+            for ability in self.passive_abilities:
+                if ability.trigger_condition == condition:
+                    result.append(ability.execute(self, self))
         for ability in self.passive_abilities:
-            result.append(ability.execute(self, None))
+            result.append(ability.execute(self, self))
 
     def receive_damage(self, damage: int | float):
         action = {'old_health': self.health}
@@ -80,8 +85,19 @@ class CharacterController:
         action['healing'] = action['new_health'] - action['old_health']
         return action
 
-    def apply_effect(self, effect, target: 'CharacterController'):
-        effect.apply(target._character)
+    def apply_effect(self, effect):
+        if not effect: return 0
+        if effect not in self.effects['immunity']:
+            self.effects['effects'].append(effect)
+            return 1
+        return 0
+
+    def apply_immunity(self, effect):
+        if not effect: return 0
+        if effect not in self.effects['immunity']:
+            self.effects['immunity'].append(effect)
+            return 1
+        return 0
 
     def calculate_damage(self):
         return self.physical_damage
@@ -98,7 +114,7 @@ class CharacterController:
 
     def __get_ability_to_attack(self):
         for ability in self.active_abilities.values():
-            if random() < ability.get_chance() and ability.cooldown == 0:
+            if (random.random() < ability.chance) and (ability.cooldown == 0):
                 return ability
 
     def __get_active_abilities(self):
@@ -115,8 +131,6 @@ class CharacterController:
         return result
 
     def __choose_random_enemy(self) -> 'CharacterController':
-        print(self.enemies)
-        print(self.teammates)
         return random.choice(self.enemies)
 
     def __choose_teammate(self) -> 'CharacterController':
@@ -206,7 +220,7 @@ class CharacterController:
             "stars": self._character.stardom,
             "lvl": self._character.level,
             "params": AddSummandParamsSchema.from_orm(self.base_params),
-            "imposed": self.effects
+            "imposed": self.effects,
         }
 
 
@@ -214,7 +228,8 @@ class AbilityController:
     def __init__(self, ability: Ability):
         self._ability = ability
         self._target = ability.target
-        self.cooldown = 0
+        self.effect: dict = ast.literal_eval(self._ability.effect)
+        self._cooldown = 0
 
     def execute(self, user: CharacterController, target: CharacterController):
         damage_result, healing_result = None, None
@@ -222,6 +237,8 @@ class AbilityController:
             damage_result = target.receive_damage(self._ability.damage)
         if self._ability.healing > 0:
             healing_result = target.receive_healing(self._ability.healing)
+        result_immunity = target.apply_immunity(self.effect.get('immunity'))
+        result_effect = target.apply_effect(self.effect.get('effect'))
         # ability_result = {
         #     'ability_name': self._ability.name,
         #     'damage': damage_result,
@@ -230,8 +247,8 @@ class AbilityController:
         #     'icon': self._ability.icon,
         #     'result': target.serialize()
         # }
-        return target.serialize()
 
+        return target.serialize()
 
     def is_successful(self):
         import random
@@ -271,14 +288,11 @@ class AbilityController:
         user.log_action(action_desc)
 
     def increase_cooldown(self, cooldown: int = 1):
-        self.cooldown += cooldown
+        self._cooldown += cooldown
 
     def decrease_cooldown(self, cooldown: int = 1):
-        self.cooldown -= cooldown
-        self.cooldown = max(self.cooldown, 0)
-
-    def get_chance(self):
-        return self._ability.chance
+        self._cooldown -= cooldown
+        self._cooldown = max(self._cooldown, 0)
 
     def get_target_rule(self):
         return self._target
@@ -286,7 +300,12 @@ class AbilityController:
     def get_effect(self):
         return self._ability.effect
 
-    def get_name(self):
+    @property
+    def chance(self):
+        return self._ability.chance
+
+    @property
+    def name(self):
         return self._ability.name
 
     @property
@@ -296,6 +315,14 @@ class AbilityController:
     @property
     def visual(self):
         return self._ability.visual
+
+    @property
+    def trigger_condition(self):
+        return self._ability.trigger_condition
+
+    @property
+    def cooldown(self):
+        return self._cooldown
 
 
 class EffectController:

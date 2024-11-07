@@ -1,6 +1,9 @@
+from datetime import time
+
 from fastapi import APIRouter, HTTPException
 from fastapi.params import Depends
 from starlette import status
+import time
 
 from auth.models import User
 from auth.user_service import get_current_user
@@ -13,16 +16,24 @@ from src.game_logic.services.general import Services
 router = APIRouter(prefix='/battle', tags=['Battle'])
 
 
+def time_decorator(func):
+    async def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = await func(*args, **kwargs)
+        end_time = time.time()
+        print(end_time - start_time)
+        return result
+    return wrapper
+
+
 @router.post('')
 async def create_battle(battle_create: BattleSchema,
                         user: User = Depends(get_current_user),
                         services: Services = Depends(get_services)):
     character_ids = battle_create.team_1 + battle_create.team_2
     characters = await services.character_service.get_many_by_ids(character_ids)
-    # team_1 = characters[:len(battle.team_1)]
-    # team_2 = characters[len(battle.team_1):]
-    team_1 = characters
-    team_2 = characters
+    team_1 = characters[:len(battle_create.team_1)]
+    team_2 = characters[len(battle_create.team_1):]
     if not all(character.user_id == user.id for character in team_1):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='You are not allowed to create battle team, while you are not owner')
     if all(character.user_id is None for character in team_2):

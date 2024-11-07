@@ -25,9 +25,9 @@ class Battle:
         self.__set_teammates()
 
     def start(self):
-        print(self.team1, self.team2)
         while not self.is_battle_over():
             self.rounds.append(self.play_round())
+            self.round_update()
 
         return BattleResultSchema(battle_log=self.rounds, result=self.__get_result())
 
@@ -39,11 +39,14 @@ class Battle:
         teams = [self.team1, self.team2]
         total_turns = len(self.team1) + len(self.team2)
         turns_taken = 0
+        step_id = 1
         while turns_taken < total_turns:
             current_team = teams[self.order]
             for character in current_team:
                 if character.health > 0:
                     step = character.attack()
+                    step['id'] = step_id
+                    step_id += 1
                     round.append(step)
                     self.order = 1 - self.order
                     turns_taken += 1
@@ -52,10 +55,10 @@ class Battle:
                     continue
 
         self.current_round += 1
-        return RoundLogSchema(steps=round)
+        return RoundLogSchema(id=self.current_round, steps=round)
 
     def is_battle_over(self):
-        return all(c.health <= 0 for c in self.team1) or all(c.health <= 0 for c in self.team2) or (len(self.rounds) >= self.max_rounds)
+        return all(c.is_dead() for c in self.team1) or all(c.is_dead() for c in self.team2) or (len(self.rounds) >= self.max_rounds)
 
     def __set_teammates(self):
         for character in self.team1:
@@ -74,12 +77,15 @@ class Battle:
             character.set_id_in_battle(i)
             i += 1
 
-    def export_log(self):
-        print(self.battle_log.export_to_json())
+    def round_update(self):
+        for character in self.team1:
+            character.round_update()
+        for character in self.team2:
+            character.round_update()
 
     def __get_result(self):
         if self.is_battle_over():
-            return {'winner': ('team_1' if any(c.health > 0 for c in self.team1) and all(c.health <= 0 for c in self.team2) else 'team_2')}
+            return {'winner': ('team_1' if any(c.is_alive() > 0 for c in self.team1) and all(c.is_dead() <= 0 for c in self.team2) else 'team_2')}
         return {'winner': 'team_2'}
 
 
