@@ -18,11 +18,11 @@ class AddCharacterClassSchema(BaseModel):
     multiplier_params: AddMultiplierParamsSchema
     summand_params: AddSummandParamsSchema
     subclasses: Optional[list[AddCharacterSubclassSchema]] = []
-    abilities: Optional[list[AddAbilitySchema] | list[int]] = []
+    abilities: Optional[list[int]] = []
 
 
 
-class CharacterSubclassSchema(AddCharacterClassSchema):
+class CharacterSubclassSchema(AddCharacterSubclassSchema):
     id: int
     abilities: list[AbilitySchema]
 
@@ -33,6 +33,7 @@ class CharacterSubclassSchema(AddCharacterClassSchema):
 class CharacterClassSchema(AddCharacterClassSchema):
     id: int
     subclasses: Optional[list[CharacterSubclassSchema]] = []
+    abilities: Optional[list[AbilitySchema]]
 
     class Config:
         from_attributes = True

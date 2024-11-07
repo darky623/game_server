@@ -37,6 +37,7 @@ async def create_ability(add_ability: AddAbilitySchema,
     try:
         ability_model = Ability(name=add_ability.name,
                                 icon=add_ability.icon,
+                                visual=add_ability.visual,
                                 tier=add_ability.tier,
                                 ability_type_id=ability_type.id,
                                 trigger_condition=TriggerCondition(add_ability.trigger_condition),
@@ -44,6 +45,8 @@ async def create_ability(add_ability: AddAbilitySchema,
                                 multiplier_params_id=inserted_multiplier_params_id,
                                 summoned_character_id=add_ability.summoned_character_id,
                                 summoned_quantity=add_ability.summoned_quantity,
+                                effect=str(add_ability.effect),
+                                chance=add_ability.chance,
                                 damage=add_ability.damage,
                                 healing=add_ability.healing)
         inserted_ability = await services.ability_service.add(ability_model)

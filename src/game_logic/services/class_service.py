@@ -43,3 +43,14 @@ class ClassService(Service):
         await self.session.delete(subclass)
         await self.session.commit()
         return True
+
+    async def delete_by_id(self, class_id: int):
+        result = await self.session.execute(
+            select(CharacterClass).where(CharacterClass.id == class_id)
+        )
+        character_class = result.scalars().first()
+        if not character_class:
+            raise HTTPException(400, detail=f'No class with id {class_id}')
+        await self.session.delete(character_class)
+        await self.session.commit()
+        return True
