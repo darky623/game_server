@@ -1,29 +1,38 @@
 version: '3.8'
 
 services:
-  app:
-    build: .
-    container_name: python_app
-    ports:
-      - "80:80"
-    environment:
-      - DATABASE_HOST=db
-      - DATABASE_PORT=5432
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_NAME=mydatabase
-    depends_on:
-      - db
-
-  db:
+  postgres:
     image: postgres:14
-    container_name: postgres_db
+    container_name: postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: mydatabase
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    env_file:
+      - .env
+    ports:
+      - "80:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+    pg_data:
