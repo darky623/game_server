@@ -6,6 +6,7 @@ from sqlalchemy import select
 from aiohttp import ClientSession
 from fastapi import Depends, HTTPException, WebSocket
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import joinedload
 from starlette import status
 
 import config
@@ -15,14 +16,21 @@ from auth.models import User, AuthSession
 http_bearer = HTTPBearer()
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
+def get_current_user_loader(load_related: bool = False):
+    async def current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
+        return await get_current_user(credentials, load_related=load_related)
+    return current_user
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
+                           load_related: bool = False) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     token = credentials.credentials
-    user = await check_auth_token(token)
+    user = await check_auth_token(token, load_related)
     if not user:
         raise credentials_exception
     return user
@@ -49,17 +57,22 @@ async def websocket_authentication(websocket: WebSocket) -> User:
         )
 
 
-async def check_auth_token(token: str):
+async def check_auth_token(token: str, load_related: bool = False) -> User:
     user = None
     async with AsyncSessionFactory() as db:
         result = await db.execute(select(AuthSession).where(
             AuthSession.token == token, AuthSession.status == 'active')
         )
         auth = result.scalars().first()
-        print(auth)
         if auth:
             if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
-                user = auth.user
+                if load_related:
+                    user_result = await db.execute(
+                        select(User).options(joinedload(User.characters)).where(User.id == auth.user_id)
+                    )
+                    user = user_result.scalars().first()
+                else:
+                    user = auth.user
             else:
                 auth.status = 'expired'
                 await db.commit()
