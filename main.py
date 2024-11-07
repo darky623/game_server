@@ -1,35 +1,37 @@
-from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
-
-from bioms.router_biome import router as biome_router
-from bioms.router_player_progress import router as player_progress_router
-from chat.router import router as chat_router
-from chat.websocket import router as chat_websocket_router
-from friends.router import router as friends_router
-from game_logic.router import router as game_logic_router
-from clan.routers.crud_router import router as clan_router
-from clan.routers.subscribe_router import router as subscribe_clan_router
-from auth.summary import router as summary_router
+from aiohttp_middlewares import cors_middleware
+from routes import routes, engine, create_archetypes
+from models import Base
+from aiohttp import web
+import config
+import ssl
 
 
-app = FastAPI()
+async def setup():
+    print('Запуск...')
+    create_archetypes()
+    app = web.Application()
+    cors = cors_middleware(
+        allow_all=True,
+        allow_credentials=True,
+        allow_headers=("Content-Type", "Authorization"),
+        allow_methods=("GET", "POST", "OPTIONS"))
+    app.middlewares.append(cors)
+    app.add_routes(routes)
+    app.on_cleanup.append(shutdown)
+
+    return app
 
 
-app.include_router(chat_router)
-app.include_router(chat_websocket_router)
-app.include_router(biome_router)
-app.include_router(player_progress_router)
-app.include_router(friends_router)
-app.include_router(game_logic_router)
-app.include_router(clan_router)
-app.include_router(subscribe_clan_router)
-app.include_router(summary_router)
+async def shutdown(app):
+    print('Выключение...')
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if __name__ == '__main__':
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    context = None
+    if config.webhook_port == 443:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        context.load_cert_chain(config.webhook_ssl_cert, config.webhook_ssl_priv)
+
+    web.run_app(setup(), host='0.0.0.0', port=config.webhook_port, ssl_context=context)
