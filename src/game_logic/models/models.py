@@ -324,7 +324,7 @@ class Ability(Base):
     summoned_character = relationship("Character")
     summoned_quantity = Column(Integer, default=0)
 
-    target = Column(String, default="enemy:1:random")
+    target = Column(String, default="self")
     effect = Column(String)
     trigger_condition = Column(Enum(TriggerCondition), nullable=False)
 

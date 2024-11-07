@@ -23,9 +23,9 @@ class BattleModel(Base):
     creator = relationship("User")
     created_at = Column(DateTime, default=datetime)
     team_1_id = Column(Integer, ForeignKey('teams.id'))
-    team_1 = relationship('Team', lazy='joined')
+    team_1 = relationship('Team', lazy='joined', foreign_keys=[team_1_id])
     team_2_id = Column(Integer, ForeignKey('teams.id'))
-    team_2 = relationship('Team', lazy='joined')
+    team_2 = relationship('Team', lazy='joined', foreign_keys=[team_2_id])
 
 
 class Team(Base):
