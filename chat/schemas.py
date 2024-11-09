@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 
 class AddChatSchema(BaseModel):
@@ -6,8 +6,9 @@ class AddChatSchema(BaseModel):
     user_ids: list[int]
 
 
-class ChatSchema(AddChatSchema):
+class ChatSchema(BaseModel):
     id: int
+    type: str
 
     class Config:
         from_attributes = True
