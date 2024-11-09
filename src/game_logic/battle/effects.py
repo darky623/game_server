@@ -1,8 +1,6 @@
-from src.game_logic.battle.controllers import CharacterController
-
 
 class BaseEffect:
-    def __init__(self, target: CharacterController):
+    def __init__(self, target):
         self._target = target
 
 
@@ -19,7 +17,7 @@ class CycleEffect(BaseEffect):
 
 
 class Bleeding(CycleEffect):
-    def __init__(self, target: CharacterController, *args):
+    def __init__(self, target, *args):
         super().__init__(target)
         self.damage = args[0]
 

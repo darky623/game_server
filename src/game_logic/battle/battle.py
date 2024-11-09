@@ -2,13 +2,11 @@ import json
 from fastapi import HTTPException
 from src.game_logic.battle.schemas import RoundLogSchema, BattleResultSchema
 
-from src.game_logic.battle.controllers import CharacterController
-
 
 class Battle:
     def __init__(self,
-                 team1: list[CharacterController],
-                 team2: list[CharacterController],
+                 team1: list,
+                 team2: list,
                  max_rounds: int = 10):
         if not len(team1) or not len(team2):
             raise HTTPException(status_code=400, detail='В команде должен быть хотя бы один герой')
