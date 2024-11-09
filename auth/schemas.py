@@ -11,7 +11,7 @@ class UserSchema(BaseModel):
     id: int
     username: str
     email: str
-    characters: list[CharacterSchema]
+    characters: Optional[list[CharacterSchema]] = []
     create_date: Optional[datetime]
     chats: list[ChatSchema]
 
