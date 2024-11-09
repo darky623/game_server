@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+from typing import Callable
 
 from sqlalchemy import select
 
@@ -15,22 +16,25 @@ from auth.models import User, AuthSession
 
 http_bearer = HTTPBearer()
 
-
-def get_current_user_loader(load_related: bool = False):
-    async def current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
-        return await get_current_user(credentials, load_related=load_related)
-    return current_user
-
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
-                           load_related: bool = False) -> User:
-    credentials_exception = HTTPException(
+credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+async def get_current_user_with_related(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
     token = credentials.credentials
-    user = await check_auth_token(token, load_related)
+    user = await check_auth_token(token, True)
+    if not user:
+        raise credentials_exception
+    return user
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
+    token = credentials.credentials
+    print(token)
+    user = await check_auth_token(token, False)
     if not user:
         raise credentials_exception
     return user
@@ -50,11 +54,7 @@ async def websocket_authentication(websocket: WebSocket) -> User:
         user.last_login = datetime.now()
         return user
     else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token missing or invalid",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise credentials_exception
 
 
 async def check_auth_token(token: str, load_related: bool = False) -> User:
