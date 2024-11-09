@@ -2,8 +2,9 @@ import enum
 import random
 import ast
 from src.game_logic.models import TriggerCondition
-from src.game_logic.models.models import Character, Ability, character_items, SummandParams
+from src.game_logic.models.models import Character, Ability, SummandParams
 from src.game_logic.schemas.params_schema import AddSummandParamsSchema
+from src.game_logic.battle.effects import effects_dict, BaseEffect
 
 
 class CharacterController:
@@ -228,8 +229,10 @@ class AbilityController:
     def __init__(self, ability: Ability):
         self._ability = ability
         self._target = ability.target
-        self.effect: dict = ast.literal_eval(self._ability.effect)
+        self._effect: dict = ast.literal_eval(self._ability.effect)
         self._cooldown = 0
+        self.effect_dict: dict = ast.literal_eval(self._ability.effect)
+        self.effect_class: BaseEffect = effects_dict.get(self.effect_dict.get('effect'))
 
     def execute(self, user: CharacterController, target: CharacterController):
         damage_result, healing_result = None, None
@@ -237,8 +240,8 @@ class AbilityController:
             damage_result = target.receive_damage(self._ability.damage)
         if self._ability.healing > 0:
             healing_result = target.receive_healing(self._ability.healing)
-        result_immunity = target.apply_immunity(self.effect.get('immunity'))
-        result_effect = target.apply_effect(self.effect.get('effect'))
+        result_immunity = target.apply_immunity(self._effect.get('immunity'))
+        result_effect = target.apply_effect(self._effect.get('effect'))
         # ability_result = {
         #     'ability_name': self._ability.name,
         #     'damage': damage_result,
@@ -297,7 +300,8 @@ class AbilityController:
     def get_target_rule(self):
         return self._target
 
-    def get_effect(self):
+    @property
+    def effect(self):
         return self._ability.effect
 
     @property
@@ -323,11 +327,6 @@ class AbilityController:
     @property
     def cooldown(self):
         return self._cooldown
-
-
-class EffectController:
-    def __init__(self):
-        ...
 
 
 class TargetType(enum.Enum):
