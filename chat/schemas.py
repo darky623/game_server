@@ -8,3 +8,6 @@ class AddChatSchema(BaseModel):
 
 class ChatSchema(AddChatSchema):
     id: int
+
+    class Config:
+        from_attributes = True

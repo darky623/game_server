@@ -21,7 +21,7 @@ async def create_chat(add_chat: AddChatSchema = Depends,
 async def get_last_messages(chat_id: int,
                             quantity: Optional[int] = 15,
                             user: User = Depends(get_current_user)):
-    if await chat_service.check_chat_member(chat_id, user.id):
+    if await chat_service.check_chat_member(chat_id, user):
         messages = await chat_service.get_last_messages(chat_id, quantity)
         response = [message.serialize() for message in messages]
         return response
