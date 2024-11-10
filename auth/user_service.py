@@ -77,7 +77,7 @@ async def check_auth_token(token: str, load_related: bool = False) -> User:
                 auth.status = 'expired'
                 await db.commit()
         else:
-            user = await check_remote_auth_token(token)
+            user = await check_remote_auth_token(token, load_related)
 
     return user
 
@@ -96,7 +96,7 @@ def validate_form_data(byte_str: bytes, required_fields: list):
         return data, None
 
 
-async def check_remote_auth_token(token: str):
+async def check_remote_auth_token(token: str, load_related: bool = False):
     headers = {'Authorization': f'Bearer {token}'}
     async with ClientSession() as session:
         async with session.get(f'{config.auth_server}/token', headers=headers) as resp:
@@ -113,7 +113,13 @@ async def check_remote_auth_token(token: str):
                     auth_session = AuthSession(token=data['auth']['token'],
                                                create_date=datetime.strptime(data['auth']['create_date'],
                                                                              config.dt_format))
-                    result = await db.execute(select(User).where(User.username == str(data['user']['username'])))
+                    if load_related:
+                        result = await db.execute(select(User)
+                                                  .options(joinedload(User.characters))
+                                                  .where(User.username == str(data['user']['username']))
+                                                  )
+                    else:
+                        result = await db.execute(select(User).where(User.username == str(data['user']['username'])))
                     user = result.scalars().first()
                     if not user:
                         user = User(username=data['user']['username'],
