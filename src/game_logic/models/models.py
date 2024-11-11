@@ -81,7 +81,7 @@ class Character(Base):
         }
 
         ability_power = 0
-        active_abilities = self.get_active_abilities()
+        active_abilities = character_controller.get_active_abilities()
         for tier, ability_controller in active_abilities.items():
             ability_power += tier_power_mapping.get(tier, 0)
 
