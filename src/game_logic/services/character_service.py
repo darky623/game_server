@@ -3,14 +3,15 @@ from sqlalchemy import select, delete
 
 from src.game_logic.models.models import Character
 from .service import Service
+from ..battle.controllers import CharacterController
 from ..schemas.character_schema import CharacterSchema
 
 
 class CharacterService(Service):
-    async def get_by_user_id(self, user_id: int) -> list[CharacterSchema]:
+    async def get_by_user_id(self, user_id: int):
         result = await self.session.execute(select(Character).where(Character.user_id == user_id))
         characters = result.unique().scalars().all()
-        return CharacterSchema.many_from_orm(characters)
+        return characters
 
     async def delete_by_id(self, id: int):
         result = await self.session.execute(delete(Character).where(Character.id == id))
@@ -47,6 +48,7 @@ class CharacterService(Service):
 
         if not character:
             raise HTTPException(404, detail="Character not found")
+        character_controller = CharacterController(character)
 
         character.name = character_data.name
         character.avatar = character_data.avatar
@@ -61,7 +63,9 @@ class CharacterService(Service):
 
         character.items = character_data.items
         character.abilities = character_data.abilities
+
         character.power = character_data.power
+        character.power = character_controller.calculate_power()
 
         self.session.add(character)
         await self.session.commit()

@@ -1,6 +1,16 @@
 from email.policy import default
 
-from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table, Enum, orm, ColumnElement
+from sqlalchemy import (
+    Column,
+    Float,
+    Integer,
+    ForeignKey,
+    String,
+    Table,
+    Enum,
+    orm,
+    ColumnElement,
+)
 from sqlalchemy.orm import relationship
 from config.database import Base
 import enum
@@ -69,24 +79,6 @@ class Character(Base):
     power = Column(Integer, default=0)
     base_params = None
     abilities = []
-
-    def calculate_power(self):
-        # Высчитывает мощность героя по формуле stardom*1000 + level*1,01 + ability_power(зависит от прокачки)
-        tier_power_mapping = {
-            1: 10,
-            2: 250,
-            3: 500,
-            4: 750,
-            5: 1000,
-        }
-
-        ability_power = 0
-        active_abilities = character_controller.get_active_abilities()
-        for tier, ability_controller in active_abilities.items():
-            ability_power += tier_power_mapping.get(tier, 0)
-
-        self.power = self.stardom * 1000 + self.level * 1.01 + ability_power
-        return self.power
 
     def serialize(self):
         return {
@@ -319,7 +311,7 @@ class Ability(Base):
 
     name = Column(String)
     icon = Column(String)
-    visual = Column(String, default='noetic')
+    visual = Column(String, default="noetic")
 
     tier = Column(Integer, nullable=False, default=0)
 
