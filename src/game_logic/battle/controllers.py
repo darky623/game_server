@@ -11,6 +11,7 @@ class CharacterController:
         self.health = 0
         self.physical_damage = 0
 
+
     def attack(self, target: 'CharacterController', ability: Ability):
         damage = self.calculate_damage(ability)
 
@@ -58,10 +59,17 @@ class CharacterController:
 
     def get_passive_abilities(self):
         result = []
-        result.extend([AbilityController(ability) for ability in self.character.character_class.abilities])
-        result.extend([AbilityController(ability) for ability in self.character.race.abilities])
-        result.extend(AbilityController(ability) for ability in self.character.runes.abilities)
+        try:
+            result.extend([AbilityController(ability) for ability in self.character.character_class.abilities])
+            result.extend([AbilityController(ability) for ability in self.character.race.abilities])
+            result.extend(AbilityController(ability) for ability in self.character.runes.abilities)
+        except AttributeError:
+            pass
         return result
+
+    def calculate_character_power(self):
+        return self.character.calculate_power(self)
+
 
 
 class AbilityController:

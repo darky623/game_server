@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from auth.models import User
 from auth.user_service import get_current_user
 from config.deps import get_services
+from src.game_logic.battle.controllers import CharacterController
 from src.game_logic.models.models import SummandParams, MultiplierParams, CharacterClass, Character, CharacterType, Race
 from src.game_logic.schemas.character_schema import CharacterSchema, AddCharacterSchema, EditCharacterSchema
 from src.game_logic.services.general import Services
@@ -62,7 +63,6 @@ async def create_character(add_character: AddCharacterSchema,
     except Exception as e:
         print(e.with_traceback())
         raise HTTPException(400, detail=str(e))
-
 
 
 @router.get('', response_model=list[CharacterSchema])
@@ -158,6 +158,12 @@ async def change_character(character_id: int,
 
         if edit_character.level is not None:
             character.level = edit_character.level
+            # Это должно быть не тут, но об этом чуть позже
+            character_controller = CharacterController(character)
+            character.power = character_controller.calculate_character_power()
+
+        # if edit_character.power is not None:
+
 
         updated_character = await services.character_service.update(character_id, character)
         return updated_character

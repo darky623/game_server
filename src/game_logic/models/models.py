@@ -79,7 +79,7 @@ class Character(Base):
         self.base_params = result
         return self.base_params
 
-    def calculate_power(self):
+    def calculate_power(self, character_controller):
         # Высчитывает мощность героя по формуле stardom*1000 + level*1,01 + ability_power(зависит от прокачки)
         tier_power_mapping = {
             1: 10,
@@ -90,7 +90,7 @@ class Character(Base):
         }
 
         ability_power = 0
-        active_abilities = self.get_active_abilities()
+        active_abilities = character_controller.get_active_abilities()
         for tier, ability_controller in active_abilities.items():
             ability_power += tier_power_mapping.get(tier, 0)
 
