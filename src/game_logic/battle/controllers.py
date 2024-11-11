@@ -18,13 +18,13 @@ class CharacterController:
         self.enemies = []
 
         self.max_health = self.base_params.vitality
-        self.health = self.max_health
+        self.vitality = self.base_params.vitality
         self.physical_damage = self.base_params.damage
         self.evasion = self.base_params.evasion
         self.resistance = self.base_params.resistance
         self.speed = self.base_params.speed
         self.id_in_battle = None
-        self.effects = {'immunity': [], 'effects': []}
+        self.effects = {'immunity': set(), 'effects': set()}
 
     def attack(self):
         action = {
@@ -88,17 +88,15 @@ class CharacterController:
 
     def apply_effect(self, effect):
         if not effect: return 0
-        if effect not in self.effects['immunity']:
-            self.effects['effects'].append(effect)
-            return 1
-        return 0
+        for immunity in self.effects['immunity']:
+            if immunity == effect:
+                return 0
+        self.effects['effects'].add(effect)
 
-    def apply_immunity(self, effect):
-        if not effect: return 0
-        if effect not in self.effects['immunity']:
-            self.effects['immunity'].append(effect)
-            return 1
-        return 0
+    def apply_immunity(self, immunity):
+        if not immunity: return 0
+        self.effects['immunity'].add(immunity)
+        self.effects['effects'].discard(immunity)
 
     def calculate_damage(self):
         return self.physical_damage
@@ -160,9 +158,9 @@ class CharacterController:
 
     def _select_target(self, ability: 'AbilityController') -> list['CharacterController']:
         try:
-            rule_parts = ability.get_target_rule().split(':')
+            rule_parts = ability.get_target_rule().split(':', 2)
             target_type = TargetType(rule_parts[0])
-            if TargetType.SELF == TargetType.SELF: return [self]
+            if target_type == TargetType.SELF: return [self]
             if rule_parts[1] == 'all':
                 quantity = len(self.enemies) if target_type == TargetType.ENEMY else len(self.teammates)
             else: quantity = int(rule_parts[1])
@@ -211,11 +209,18 @@ class CharacterController:
     def get_class(self):
         return self._character.character_class
 
+    @property
+    def health(self):
+        return self.base_params.vitality
+
+    @health.setter
+    def health(self, value: int):
+        self.base_params.vitality = value
+
     def serialize(self):
         return {
             "id": self.id_in_battle,
             "name": self._character.name,
-            "health": self.health,
             "class": self._character.character_class.title,
             "subclass": self._character.subclass.title,
             "stars": self._character.stardom,
@@ -242,14 +247,6 @@ class AbilityController:
             healing_result = target.receive_healing(self._ability.healing)
         result_immunity = target.apply_immunity(self._effect.get('immunity'))
         result_effect = target.apply_effect(self._effect.get('effect'))
-        # ability_result = {
-        #     'ability_name': self._ability.name,
-        #     'damage': damage_result,
-        #     'healing': healing_result,
-        #     'visual': self._ability.visual,
-        #     'icon': self._ability.icon,
-        #     'result': target.serialize()
-        # }
 
         return target.serialize()
 
@@ -277,18 +274,6 @@ class AbilityController:
         base_healing = self._ability.healing
         multiplier = user._character.multiplier_params.healing_multiplier or 1
         return base_healing * multiplier
-
-    def log_action(self, user: CharacterController, target: CharacterController, success=True):
-        action_desc = {'action': f'{user._character.name} использовал {self._ability.name} на {target._character.name}.'}
-        if success:
-            if self._ability.damage > 0:
-                action_desc['damage'] = f' Нанесено {self._ability.damage} урона.'
-            if self._ability.healing > 0:
-                action_desc['healing'] = f' Исцелено {self._ability.healing}.'
-        else:
-            action_desc['success'] = False
-
-        user.log_action(action_desc)
 
     def increase_cooldown(self, cooldown: int = 1):
         self._cooldown += cooldown

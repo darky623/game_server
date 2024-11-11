@@ -12,7 +12,7 @@ auth_server = os.getenv("AUTH_SERVER")
 secret_key = os.environ.get("SECRET_KEY")
 
 dt_format = "%d/%m/%Y %H:%M:%S"
-token_lifetime = 360000
+token_lifetime = 3600
 
 permissions_for_clan = {
     "Head": [

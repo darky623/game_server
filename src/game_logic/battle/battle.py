@@ -27,7 +27,7 @@ class Battle:
             self.rounds.append(self.play_round())
             self.round_update()
 
-        return BattleResultSchema(battle_log=self.rounds, result=self.__get_result())
+        return BattleResultSchema(rounds=self.rounds, result=self.__get_result())
 
     def get_turn_order(self):
         return self.team1 if self.order == 0 else self.team2
