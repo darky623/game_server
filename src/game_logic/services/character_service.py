@@ -4,7 +4,6 @@ from sqlalchemy import select, delete
 from src.game_logic.models.models import Character
 from .service import Service
 from ..battle.controllers import CharacterController
-from ..schemas.character_schema import CharacterSchema
 
 
 class CharacterService(Service):

@@ -33,6 +33,13 @@ class AddCharacterSchema(BaseModel):
     class Config:
         from_attributes = True
 
+    @root_validator(pre=True)
+    def calculate_power(cls, values):
+        # Используйте ваш метод calculate_power из модели Character
+        character = Character(**values)
+        values['power'] = character.calculate_power()
+        return values
+
 
 class CharacterSchema(AddCharacterSchema):
     id: int

@@ -231,8 +231,6 @@ class SummandParams(Base):
                 resistance=self.resistance * other,
                 evasion=self.evasion * other,
             )
-        if isinstance(other, MultiplierParams):
-            return other * self
         return NotImplemented
 
 
