@@ -1,6 +1,7 @@
 import enum
 import random
 import ast
+
 from src.game_logic.models import TriggerCondition
 from src.game_logic.models.models import Character, Ability, SummandParams
 from src.game_logic.schemas.params_schema import AddSummandParamsSchema
@@ -135,24 +136,6 @@ class CharacterController:
     def __choose_teammate(self) -> 'CharacterController':
         return random.choice(self.teammates)
 
-    def calculate_power(self):
-        # Высчитывает мощность героя по формуле stardom*1000 + level*1,01 + ability_power(зависит от прокачки)
-        tier_power_mapping = {
-            1: 10,
-            2: 250,
-            3: 500,
-            4: 750,
-            5: 1000,
-        }
-
-        ability_power = 0
-        active_abilities = self.__get_active_abilities()
-        for tier, ability_controller in active_abilities.items():
-            ability_power += tier_power_mapping.get(tier, 0)
-
-        self._character.power = int(self._character.stardom * 1000 + self._character.level * 1.01 + ability_power)
-        return self._character.power
-
     def __calculate_base_params(self):
         result = self._character.summand_params * (self._character.multiplier_params * self._character.level)
         result += (self._character.character_class.summand_params +
@@ -181,7 +164,8 @@ class CharacterController:
             if target_type == TargetType.SELF: return [self]
             if rule_parts[1] == 'all':
                 quantity = len(self.enemies) if target_type == TargetType.ENEMY else len(self.teammates)
-            else: quantity = int(rule_parts[1])
+            else:
+                quantity = int(rule_parts[1])
             selection_method = rule_parts[2] if len(rule_parts) > 2 else None
         except:
             return []

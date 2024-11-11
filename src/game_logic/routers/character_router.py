@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from auth.models import User
 from auth.user_service import get_current_user
 from config.deps import get_services
-from src.game_logic.battle.controllers import CharacterController
 from src.game_logic.models.models import (
     SummandParams,
     MultiplierParams,

@@ -9,12 +9,10 @@ from sqlalchemy import (
     Table,
     Enum,
     orm,
-    ColumnElement,
 )
 from sqlalchemy.orm import relationship
 from config.database import Base
 import enum
-
 
 character_items = Table(
     "character_items",
@@ -231,6 +229,8 @@ class SummandParams(Base):
                 resistance=self.resistance * other,
                 evasion=self.evasion * other,
             )
+        elif isinstance(other, MultiplierParams):
+            return other * self
         return NotImplemented
 
 

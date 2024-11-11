@@ -41,4 +41,11 @@ energy_per_battle = {1: 10}
 time_add_one_energy = timedelta(seconds=5)
 energy_per_time = {time_add_one_energy: 1}
 
-
+max_tier = 5
+tier_power_mapping = {
+    1: 10,
+    2: 250,
+    3: 500,
+    4: 750,
+    5: 1000,
+}
