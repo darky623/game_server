@@ -49,7 +49,7 @@ class EnergyService:
             energy = Energy(user_id=user_id)
             session.add(energy)
             await session.commit()
-            return EnergySchema.from_orm(energy)
+            return energy
         except Exception as e:
             logger.error(f"Error creating energy: {e}")
             return None
