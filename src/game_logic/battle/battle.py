@@ -1,13 +1,14 @@
+from enum import Enum, auto
 import json
 from fastapi import HTTPException
+
+from src.game_logic.battle.observer.subject import Subject
 from src.game_logic.battle.schemas import RoundLogSchema, BattleResultSchema
 
 
-class Battle:
-    def __init__(self,
-                 team1: list,
-                 team2: list,
-                 max_rounds: int = 10):
+class Battle(Subject):
+    def __init__(self, team1: list, team2: list, max_rounds: int = 10):
+        super().__init__()
         if not len(team1) or not len(team2):
             raise HTTPException(status_code=400, detail='В команде должен быть хотя бы один герой')
 
@@ -76,6 +77,7 @@ class Battle:
             i += 1
 
     def round_update(self):
+        result = self.notify(BattleEvent.NEW_ROUND)
         for character in self.team1:
             character.round_update()
         for character in self.team2:
@@ -85,6 +87,15 @@ class Battle:
         if self.is_battle_over():
             return {'winner': ('team_1' if any(c.is_alive() > 0 for c in self.team1) and all(c.is_dead() <= 0 for c in self.team2) else 'team_2')}
         return {'winner': 'team_2'}
+
+
+class BattleEvent(Enum):
+    NEW_ROUND = auto()
+    DAMAGED = auto()
+    HEALING = auto()
+    IMPOSED = auto()
+    BUFF = auto()
+    DEBUFF = auto()
 
 
 class BattleLog:
