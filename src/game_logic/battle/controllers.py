@@ -1,13 +1,18 @@
 import enum
 import random
 import ast
+
+from src.game_logic.battle.battle import BattleEvent
+from src.game_logic.battle.observer.observer import Observer
 from src.game_logic.models import TriggerCondition
 from src.game_logic.models.models import Character, Ability, SummandParams
 from src.game_logic.schemas.params_schema import AddSummandParamsSchema
-from src.game_logic.battle.effects import effects_dict, BaseEffect
+from src.game_logic.battle.effects import effects_dict, BaseEffect, StartEndEffect, CycleEffect, Paralysis, \
+    EffectManager, Immunity
+from typing import Type
 
 
-class CharacterController:
+class CharacterController(Observer):
     def __init__(self, character: Character):
         self._character = character
         self.active_abilities: dict[int, AbilityController] = self.__get_active_abilities()
@@ -24,7 +29,14 @@ class CharacterController:
         self.resistance = self.base_params.resistance
         self.speed = self.base_params.speed
         self.id_in_battle = None
-        self.effects = {'immunity': set(), 'effects': set()}
+        self.effects = set()
+        self.immunities = set()
+        self._paralyzed = False
+
+        self.effect_manager = EffectManager()
+        self.events_handlers = {
+            BattleEvent.NEW_ROUND: self.round_update,
+        }
 
     def attack(self):
         action = {
@@ -86,17 +98,18 @@ class CharacterController:
         action['healing'] = action['new_health'] - action['old_health']
         return action
 
-    def apply_effect(self, effect):
+    def apply_effect(self, effect: BaseEffect):
         if not effect: return 0
-        for immunity in self.effects['immunity']:
-            if immunity == effect:
-                return 0
-        self.effects['effects'].add(effect)
+        self.effect_manager.add_effect(effect)
+        # if effect in self.immunities:
+        #     return 0
+        # self.effects.add(effect)
 
-    def apply_immunity(self, immunity):
+    def apply_immunity(self, immunity: Immunity):
+        self.effect_manager.add_immunity(immunity)
         if not immunity: return 0
-        self.effects['immunity'].add(immunity)
-        self.effects['effects'].discard(immunity)
+        # self.immunities.add(immunity)
+        # self.effects.discard(immunity)
 
     def calculate_damage(self):
         return self.physical_damage
@@ -110,6 +123,7 @@ class CharacterController:
     def round_update(self):
         self.__decrease_cooldowns()
         self.use_passive_abilities()
+        self.effect_manager.update(BattleEvent.NEW_ROUND)
 
     def __get_ability_to_attack(self):
         for ability in self.active_abilities.values():
@@ -209,6 +223,11 @@ class CharacterController:
     def get_class(self):
         return self._character.character_class
 
+    def update(self, event: BattleEvent):
+        handler = self.events_handlers.get(event)
+        if handler:
+            return handler()
+
     @property
     def health(self):
         return self.base_params.vitality
@@ -216,6 +235,20 @@ class CharacterController:
     @health.setter
     def health(self, value: int):
         self.base_params.vitality = value
+
+    @property
+    def paralyzed(self):
+        return self._paralyzed
+
+    @paralyzed.setter
+    def paralyzed(self, value: bool):
+        if not value:
+            cnt = 0
+            for effect in self.effects:
+                if isinstance(effect, Paralysis):
+                    cnt += 1
+            if cnt > 1: return
+        self._paralyzed = value
 
     def serialize(self):
         return {
@@ -226,7 +259,12 @@ class CharacterController:
             "stars": self._character.stardom,
             "lvl": self._character.level,
             "params": AddSummandParamsSchema.from_orm(self.base_params),
-            "imposed": self.effects,
+            "imposed": {
+                'effects': [effect.name for effect in self.effect_manager.effects],
+                'immunity': [immunity.effect.name for immunity in self.effect_manager.immunities],
+            },
+            "alive": self.is_alive(),
+            "paralyzed": self.paralyzed,
         }
 
 
@@ -236,8 +274,16 @@ class AbilityController:
         self._target = ability.target
         self._effect: dict = ast.literal_eval(self._ability.effect)
         self._cooldown = 0
-        self.effect_dict: dict = ast.literal_eval(self._ability.effect)
-        self.effect_class: BaseEffect = effects_dict.get(self.effect_dict.get('effect'))
+        try:
+            self.effect_class: Type[BaseEffect] = effects_dict.get(self._effect.pop('effect'))
+            self.effect_params = effects_dict
+        except KeyError:
+            self.effect_class, self.effect_params = None, None
+        try:
+            self.immunity_effect = self._effect.pop('immunity')
+            self.immunity = Immunity(effects_dict.get(self.immunity_effect))
+        except KeyError:
+            self.immunity, self.immunity_effect, self.effect_class, self.effect_params = None, None, None, None
 
     def execute(self, user: CharacterController, target: CharacterController):
         damage_result, healing_result = None, None
@@ -245,8 +291,12 @@ class AbilityController:
             damage_result = target.receive_damage(self._ability.damage)
         if self._ability.healing > 0:
             healing_result = target.receive_healing(self._ability.healing)
-        result_immunity = target.apply_immunity(self._effect.get('immunity'))
-        result_effect = target.apply_effect(self._effect.get('effect'))
+        if self.effect_class:
+            effect_instance = self.effect_class(target, **self.effect_params)
+            result_effect = target.apply_effect(effect_instance)
+        if self.immunity:
+            result_immunity = target.apply_immunity(self.immunity)
+
 
         return target.serialize()
 
