@@ -36,6 +36,7 @@ class CharacterController(Observer):
         self.effect_manager = EffectManager()
         self.events_handlers = {
             BattleEvent.NEW_ROUND: self.round_update,
+            BattleEvent.START: self.start_update
         }
 
     def attack(self):
@@ -76,9 +77,31 @@ class CharacterController(Observer):
         if condition:
             for ability in self.passive_abilities:
                 if ability.trigger_condition == condition:
-                    result.append(ability.execute(self, self))
+                    action = {
+                        'initiator': self.id_in_battle,
+                        'targets': [self.id_in_battle],
+                        'ability': ability.name,
+                        'visual': ability.visual,
+                        'icon': ability.icon,
+                        'result': ability.execute(self, self)
+                    }
+                    result.append(action)
+            return result
         for ability in self.passive_abilities:
-            result.append(ability.execute(self, self))
+            action = {
+                'initiator': self.id_in_battle,
+                'targets': [self.id_in_battle],
+                'ability': ability.name,
+                'visual': ability.visual,
+                'icon': ability.icon,
+                'result': ability.execute(self, self)
+            }
+            result.append(action)
+        return result
+
+    def start_update(self):
+        result = self.use_passive_abilities(TriggerCondition.ON_START)
+        return result
 
     def receive_damage(self, damage: int | float):
         action = {'old_health': self.health}
@@ -101,15 +124,10 @@ class CharacterController(Observer):
     def apply_effect(self, effect: BaseEffect):
         if not effect: return 0
         self.effect_manager.add_effect(effect)
-        # if effect in self.immunities:
-        #     return 0
-        # self.effects.add(effect)
 
     def apply_immunity(self, immunity: Immunity):
-        self.effect_manager.add_immunity(immunity)
         if not immunity: return 0
-        # self.immunities.add(immunity)
-        # self.effects.discard(immunity)
+        self.effect_manager.add_immunity(immunity)
 
     def calculate_damage(self):
         return self.physical_damage
@@ -260,11 +278,10 @@ class CharacterController(Observer):
             "lvl": self._character.level,
             "params": AddSummandParamsSchema.from_orm(self.base_params),
             "imposed": {
-                'effects': [effect.name for effect in self.effect_manager.effects],
+                'effects': [effect.serialize() for effect in self.effect_manager.effects],
                 'immunity': [immunity.effect.name for immunity in self.effect_manager.immunities],
             },
-            "alive": self.is_alive(),
-            "paralyzed": self.paralyzed,
+            "alive": self.is_alive()
         }
 
 
@@ -283,7 +300,7 @@ class AbilityController:
             self.immunity_effect = self._effect.pop('immunity')
             self.immunity = Immunity(effects_dict.get(self.immunity_effect))
         except KeyError:
-            self.immunity, self.immunity_effect, self.effect_class, self.effect_params = None, None, None, None
+            self.immunity, self.immunity_effect = None, None
 
     def execute(self, user: CharacterController, target: CharacterController):
         damage_result, healing_result = None, None
@@ -292,7 +309,13 @@ class AbilityController:
         if self._ability.healing > 0:
             healing_result = target.receive_healing(self._ability.healing)
         if self.effect_class:
-            effect_instance = self.effect_class(target, **self.effect_params)
+            effect_instance = self.effect_class(
+                target,
+                **self.effect_params,
+                description=self.description,
+                icon=self.icon,
+
+            )
             result_effect = target.apply_effect(effect_instance)
         if self.immunity:
             result_immunity = target.apply_immunity(self.immunity)
@@ -362,6 +385,10 @@ class AbilityController:
     @property
     def cooldown(self):
         return self._cooldown
+
+    @property
+    def description(self):
+        return self._ability.description
 
 
 class TargetType(enum.Enum):

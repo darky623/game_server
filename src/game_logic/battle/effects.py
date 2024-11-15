@@ -9,6 +9,8 @@ class BaseEffect:
     def __init__(self, target, *args, **kwargs):
         self._target = target
         self.lifetime = kwargs.get('lifetime', self.lifetime)
+        self.description = kwargs.get('description', '')
+        self.icon = kwargs.get('icon', '#')
 
     def decrease_lifetime(self):
         self.lifetime -= 1
@@ -17,6 +19,15 @@ class BaseEffect:
     def increase_lifetime(self):
         self.lifetime += 1
         return self.lifetime
+
+    def serialize(self):
+        return {
+            'title': self.name,
+            'description': self.description,
+            'icon': self.icon,
+            'cooldown': self.lifetime,
+
+        }
 
 
 class StartEndEffect(BaseEffect):
@@ -70,7 +81,7 @@ class ShieldEffect(StartEndEffect):
 
 
 class Immunity:
-    def __init__(self, effect: Type[BaseEffect], lifetime: int = 10):
+    def __init__(self, effect: Type[BaseEffect], lifetime: int = 1):
         self._effect: Type[BaseEffect] = effect
         self._lifetime = lifetime
 
@@ -119,10 +130,14 @@ class EffectManager:
     def __remove_ended(self):
         to_remove = []
         for effect in self._effects:
-            if effect.lifetime < 0:
+            if effect.lifetime <= 0:
                 to_remove.append(effect)
+        for immunity in self._immunities:
+            if immunity.lifetime <= 0:
+                to_remove.append(immunity)
         for effect in to_remove:
             self.remove_effect(effect)
+            self.remove_immunity(effect)
 
     def __remove_by_immunity(self, immunity):
         to_remove = []
@@ -142,6 +157,7 @@ class EffectManager:
                         effect.apply_end()
             for immunity in self._immunities:
                 immunity.decrease_lifetime()
+        self.__remove_ended()
 
     @property
     def immunities(self):

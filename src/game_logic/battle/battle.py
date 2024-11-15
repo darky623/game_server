@@ -22,8 +22,11 @@ class Battle(Subject):
         self.rounds = []
         self.set_battle_ids()
         self.__set_teammates()
+        self.__sign_observers()
 
     def start(self):
+        start_result = self.start_update()
+        self.rounds.append(RoundLogSchema(id=0, steps=start_result))
         while not self.is_battle_over():
             self.rounds.append(self.play_round())
             self.round_update()
@@ -76,12 +79,23 @@ class Battle(Subject):
             character.set_id_in_battle(i)
             i += 1
 
+    def __sign_observers(self):
+        for character in self.team1:
+            self.add_observer(character)
+        for character in self.team2:
+            self.add_observer(character)
+
     def round_update(self):
         result = self.notify(BattleEvent.NEW_ROUND)
-        for character in self.team1:
-            character.round_update()
-        for character in self.team2:
-            character.round_update()
+        return result
+        # for character in self.team1:
+        #     character.round_update()
+        # for character in self.team2:
+        #     character.round_update()
+
+    def start_update(self):
+        result = self.notify(BattleEvent.START)
+        return result
 
     def __get_result(self):
         if self.is_battle_over():
@@ -90,6 +104,7 @@ class Battle(Subject):
 
 
 class BattleEvent(Enum):
+    START = auto()
     NEW_ROUND = auto()
     DAMAGED = auto()
     HEALING = auto()

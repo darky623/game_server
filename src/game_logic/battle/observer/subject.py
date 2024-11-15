@@ -9,5 +9,8 @@ class Subject:
         self.observers.remove(observer)
 
     def notify(self, event):
+        results = []
         for observer in self.observers:
-            observer.update(event)
+            result = observer.update(event)
+            results.append(result)
+        return results
