@@ -237,32 +237,32 @@ class SummandParams(Base):
             )
         return NotImplemented
 
-
-class Item(Base):
-    __tablename__ = "items"
-
-    id = Column(Integer, primary_key=True, index=True)
-
-    name = Column(String)
-    level = Column(Integer)
-    icon = Column(String)
-
-    tier = Column(Integer)
-
-    summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
-    summand_params = relationship("SummandParams", lazy="joined", cascade="all, delete")
-
-    multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"))
-    multiplier_params = relationship(
-        "MultiplierParams", lazy="joined", cascade="all, delete"
-    )
-
-    @orm.validates("tier")
-    def validate_tier_number(self, key, value):
-        if not 0 <= value <= 5:
-            raise ValueError(f"Invalid ability tier {value}")
-        return value
-
+#
+# class Item(Base):
+#     __tablename__ = "items"
+#
+#     id = Column(Integer, primary_key=True, index=True)
+#
+#     name = Column(String)
+#     level = Column(Integer)
+#     icon = Column(String)
+#
+#     tier = Column(Integer)
+#
+#     summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
+#     summand_params = relationship("SummandParams", lazy="joined", cascade="all, delete")
+#
+#     multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"))
+#     multiplier_params = relationship(
+#         "MultiplierParams", lazy="joined", cascade="all, delete"
+#     )
+#
+#     @orm.validates("tier")
+#     def validate_tier_number(self, key, value):
+#         if not 0 <= value <= 5:
+#             raise ValueError(f"Invalid ability tier {value}")
+#         return value
+#
 
 races_abilities = Table(
     "races_abilities",
