@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from auth.user_service import get_current_user
 from config.deps import get_services
-from src.game_logic.models.models import SummandParams, MultiplierParams, Item
+from src.game_logic.models.inventory_models import Item
+from src.game_logic.models.models import SummandParams, MultiplierParams
 from src.game_logic.schemas.item_schema import AddItemSchema, ItemSchema
 
 router = APIRouter(prefix='/items', tags=['items'])
