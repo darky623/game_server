@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import select, delete
 
-from src.game_logic.models.models import Item
+from src.game_logic.models.inventory_models import Item
 
 from src.game_logic.services.service import Service
 
@@ -30,3 +30,13 @@ class ItemService(Service):
             raise HTTPException(400, detail='No item with such id')
         await self.session.commit()
         return result
+
+    async def update_by_id(self, id: int, data: dict):
+        result = await self.session.execute(select(Item).where(Item.id == id))
+        item = result.scalars().first()
+        if not item:
+            raise HTTPException(400, detail='No item with such id')
+        for key, value in data.items():
+            setattr(item, key, value)
+        await self.session.commit()
+        return item

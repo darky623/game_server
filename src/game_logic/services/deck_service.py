@@ -20,7 +20,7 @@ class DeckService(Service):
                                            user_id: int,
                                            character_ids: List[int]
                                            ) -> bool:
-        """"Проверяет, принадлежат ли персонажи юзеру.
+        """Проверяет, принадлежат ли персонажи юзеру.
         Args:
             user_id (int): ID юзера
             character_ids (List[int]): ID персонажей

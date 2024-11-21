@@ -21,6 +21,7 @@ class User(Base):
     decks = relationship("Deck", back_populates="owner")
     energy = relationship("Energy", back_populates="user")
     is_admin = Column(Boolean, default=False)
+    inventory = relationship("Inventory", back_populates="user", lazy='joined')
 
     def serialize(self):
         return {

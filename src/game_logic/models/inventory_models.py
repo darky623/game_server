@@ -6,25 +6,14 @@ from sqlalchemy.orm import relationship
 from config.database import Base
 
 
-class Resource(Base):
-    """ Один ресурс в игре.
-    Класс для ресурсов, которые могут быть предметами или вещами."""
-    __tablename__ = 'resources'
-
-    id = Column(Integer, primary_key=True, index=True)
-    type = Column(String, index=True)
-    rarity = Column(String)
-    stackable = Boolean(True)
-    icon = Column(String)
-
-
 class Inventory(Base):
     """ Инвентарь игрока.
     Класс для хранения предметов игрока."""
     __tablename__ = 'inventories'
 
     id = Column(Integer, primary_key=True, index=True)
-    player_id = Column(Integer, ForeignKey('players.id'))  # Предполагается, что игроки хранятся в таблице players
+    user_id = Column(Integer, ForeignKey('users.id'))
+    user = relationship("User", back_populates="inventory")
     stacks = relationship("Stack", back_populates="inventory")
 
 
@@ -34,26 +23,23 @@ class Stack(Base):
     __tablename__ = 'stacks'
 
     id = Column(Integer, primary_key=True, index=True)
-    resource_id = Column(Integer, ForeignKey('resources.id'))
     inventory_id = Column(Integer, ForeignKey('inventories.id'))
+    item_id = Column(Integer, ForeignKey('items.id'))
     quantity = Column(Integer)
 
-    resource = relationship("Resource")
+    item = relationship("Item")
     inventory = relationship("Inventory", back_populates="stacks")
 
 
 class Item(Base):
-    """ Предмет игрока.
-    Класс для хранения информации о предметах игрока(в инвентаре)."""
+    """ Предметы игроков.
+    Класс для хранения информации о предметах игры."""
     __tablename__ = "items"
 
     id = Column(Integer, primary_key=True, index=True)
-    stack_id = Column(Integer, ForeignKey('stacks.id'))
-    stack = relationship("Stack")
+    is_stacked = Column(Boolean)
 
-    is_stacked = Boolean()
-
-    item_type = Column(Enum("equipment", "runes", "consumables", "quest_items"))  # Например, 'снаряжение', 'руны', 'расходники', 'квестовые предметы'
+    item_type = Column(String())  # Например, 'снаряжение', 'руны', 'расходники', 'квестовые предметы'
     item_data = Column(JSONB)  # Данные о предмете, например, для снаряжения - характеристики, для рун - силы и т.д.
 
     name = Column(String)

@@ -26,6 +26,7 @@ from src.chat.models import *
 from src.game_logic.models.models import *
 from src.game_logic.models.deck_models import *
 from src.game_logic.models.biome_models import *
+from src.game_logic.models.inventory_models import *
 from src.game_logic.energy.models import *
 from src.friends.models import *
 from src.clan.models import *
