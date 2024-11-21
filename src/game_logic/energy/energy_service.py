@@ -156,7 +156,7 @@ class EnergyService:
             )
         # Потенциальное количество энергии которое могло бы накопиться если бы она тикала каждую ед. времени
         potential_energy = min(energy.amount + energy_gained, self.max_energy)
-        # Потенциальное количество энергии если у поль-ля больше чем максимум энергии
+        # Потенциальное количество энергии если у поль-ля потенциально станет больше чем максимум энергии, после обновы
         potential_energy_with_overmax = energy.amount + min(energy_gained, abs(energy.amount-self.max_energy))
 
         return potential_energy, potential_energy_with_overmax
