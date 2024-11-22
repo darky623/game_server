@@ -38,6 +38,7 @@ class Item(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     is_stacked = Column(Boolean)
+    is_personal = Column(Boolean, default=True) # Персональный предмет нельзя передать другому игроку
 
     item_type = Column(String())  # Например, 'снаряжение', 'руны', 'расходники', 'квестовые предметы'
     item_data = Column(JSONB)  # Данные о предмете, например, для снаряжения - характеристики, для рун - силы и т.д.

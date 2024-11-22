@@ -14,6 +14,7 @@ class AddItemSchema(BaseModel):
     item_data: Optional[Dict[str, Any]]
     level: Optional[int] = None
     icon: Optional[str] = None
+    is_personal: bool = False
     tier: int = Field(ge=0, le=5)
     summand_params: AddSummandParamsSchema
     multiplier_params: AddMultiplierParamsSchema
