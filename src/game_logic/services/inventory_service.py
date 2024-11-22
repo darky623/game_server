@@ -26,11 +26,11 @@ class InventoryService(Service):
             .options(joinedload(Inventory.stacks).joinedload(Stack.item))
             .where(Inventory.user_id == user_id)
         )
-        inventory = inventory.scalar_one_or_none()
-
         # Create inventory if not exists
         if not inventory:
             inventory = await self._create_inventory(user_id)
+
+        inventory = inventory.unique().scalar_one_or_none()
 
         return InventoryResponse.from_orm(inventory)
 
@@ -38,12 +38,12 @@ class InventoryService(Service):
         self, user_id: int, items_to_add: list[StackBase]
     ) -> InventoryResponse:
         # Get inventory with related stacks and items
-        inventory_query = await self.session.execute(
+        inventory_result = await self.session.execute(
             select(Inventory)
             .options(joinedload(Inventory.stacks).joinedload(Stack.item))
             .where(Inventory.user_id == user_id)
         )
-        inventory = inventory_query.scalar_one_or_none()
+        inventory = inventory_result.unique().scalar_one_or_none()
 
         if not inventory:
             inventory = await self._create_inventory(user_id)
@@ -51,14 +51,14 @@ class InventoryService(Service):
         # Add items to inventory
         for stack_data in items_to_add:
             # Get item info
-            item_query = await self.session.execute(
-                select(Item).where(Item.id == stack_data.item.id)
+            item_result = await self.session.execute(
+                select(Item).where(Item.id == stack_data.item_id)
             )
-            item = item_query.scalar_one_or_none()
+            item = item_result.scalar_one_or_none()
 
             if not item:
                 raise HTTPException(
-                    status_code=404, detail=f"Item {stack_data.item.id} not found"
+                    status_code=404, detail=f"Item {stack_data.item_id} not found"
                 )
 
             if item.is_stacked:
@@ -100,7 +100,7 @@ class InventoryService(Service):
             .options(joinedload(Inventory.stacks))
             .where(Inventory.user_id == user_id)
         )
-        inventory = inventory_query.scalar_one_or_none()
+        inventory = inventory_query.unique().scalar_one_or_none()
 
         if not inventory:
             raise HTTPException(status_code=404, detail="Inventory not found")
@@ -112,7 +112,7 @@ class InventoryService(Service):
                 (
                     stack
                     for stack in inventory.stacks
-                    if stack.item_id == stack_data.item.id
+                    if stack.item_id == stack_data.item_id
                 ),
                 None,
             )
@@ -120,7 +120,7 @@ class InventoryService(Service):
             if not existing_stack:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Item {stack_data.item.id} not found in inventory",
+                    detail=f"Item {stack_data.item_id} not found in inventory",
                 )
 
             if existing_stack.quantity < stack_data.quantity:
@@ -139,20 +139,31 @@ class InventoryService(Service):
         await self.session.refresh(inventory)
         return InventoryResponse.from_orm(inventory)
 
-    async def has_item(self, user_id: int, item_id: int, quantity: int = 1) -> bool:
+    async def has_items(self, user_id: int, items_to_check: list[StackCreate]) -> bool:
         # Check if user has enough of specific item
         inventory_query = await self.session.execute(
             select(Inventory)
             .options(joinedload(Inventory.stacks))
             .where(Inventory.user_id == user_id)
         )
-        inventory = inventory_query.scalar_one_or_none()
+        inventory = inventory_query.unique().scalar_one_or_none()
 
         if not inventory:
             return False
+        for stack_data in items_to_check:
+            # Find stack with this item
+            existing_stack = next(
+                (
+                    stack
+                    for stack in inventory.stacks
+                    if stack.item_id == stack_data.item_id
+                ),
+                None,
+            )
 
-        total_quantity = sum(
-            stack.quantity for stack in inventory.stacks if stack.item_id == item_id
-        )
+            if existing_stack:
+                return True
 
-        return total_quantity >= quantity
+            if existing_stack.quantity >= stack_data.quantity:
+                return True
+        return False

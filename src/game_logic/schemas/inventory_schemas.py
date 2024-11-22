@@ -4,7 +4,7 @@ from src.game_logic.schemas.item_schema import ItemSchema
 
 
 class StackBase(BaseModel):
-    item: ItemSchema
+    item_id: int
     quantity: int
 
 
@@ -20,7 +20,7 @@ class StackResponse(StackBase):
 
 
 class InventoryBase(BaseModel):
-    player_id: int
+    user_id: int
 
 
 class InventoryCreate(InventoryBase):
@@ -29,7 +29,7 @@ class InventoryCreate(InventoryBase):
 
 class InventoryResponse(InventoryBase):
     id: int
-    stacks: list[StackResponse]
+    stacks: list[StackResponse] = []
 
     class Config:
         from_attributes = True
