@@ -4,6 +4,7 @@ from src.game_logic.services.ability_service import AbilityService
 from src.game_logic.services.biome_service import BiomeService
 from src.game_logic.services.character_service import CharacterService
 from src.game_logic.services.class_service import ClassService
+from src.game_logic.services.crafting_service import CraftingService
 from src.game_logic.services.deck_service import DeckService
 from src.game_logic.services.inventory_service import InventoryService
 from src.game_logic.services.item_service import ItemService
@@ -27,3 +28,4 @@ class Services:
         self.biome_service: BiomeService = BiomeService(self.__session)
         self.player_progress_service: PlayerProgressService = PlayerProgressService(self.__session)
         self.inventory_service: InventoryService = InventoryService(self.__session)
+        self.crafting_service: CraftingService = CraftingService(self.__session)

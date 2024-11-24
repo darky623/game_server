@@ -78,5 +78,6 @@ async def transfer_item(
         current_user: User = Depends(get_current_user),
         services: Services = Depends(get_services)
 ):
+    """Перевести предмет между пользователями"""
     await services.inventory_service.transfer_item(current_user.id, to_user_id, item_id, quantity)
     return {"message": "Item transferred successfully"}
