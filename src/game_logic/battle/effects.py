@@ -168,7 +168,6 @@ class EffectManager:
         return self._effects
 
 
-
 effects_dict = {
     'bleeding': Bleeding,
     'paralyzed': Paralysis,
