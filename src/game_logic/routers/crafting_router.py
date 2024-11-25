@@ -9,10 +9,38 @@ from src.game_logic.schemas.crafting_schemas import (
     CraftingAttemptResponse,
     KnownRecipeResponse,
     RecipeResponse,
+    RecipeCreateRequest,
 )
 from src.game_logic.services.general import Services
 
 router = APIRouter(prefix="/crafting", tags=["crafting"])
+
+
+@router.get(
+    "/recipes",
+    response_model=List[RecipeResponse],
+    dependencies=[Depends(get_current_user)]
+)
+async def get_active_recipes(
+    services: Services = Depends(get_services),
+) -> List[RecipeResponse]:
+    """Получить список всех активных рецептов, доступных для крафта"""
+    recipes = await services.crafting_service.get_all_active_recipes()
+    return [RecipeResponse.model_validate(recipe) for recipe in recipes]
+
+
+@router.get(
+    "/known_recipes",
+    response_model=List[KnownRecipeResponse],
+    dependencies=[Depends(get_current_user)]
+)
+async def get_known_recipes(
+    current_user: User = Depends(get_current_user),
+    services: Services = Depends(get_services),
+) -> List[KnownRecipeResponse]:
+    """Получить список всех известных рецептов текущего пользователя"""
+    recipes = await services.crafting_service.get_known_recipes(current_user.id)
+    return [KnownRecipeResponse.model_validate(recipe) for recipe in recipes]
 
 
 @router.post(
@@ -26,38 +54,28 @@ async def attempt_craft(
     services: Services = Depends(get_services),
 ) -> CraftingAttemptResponse:
     """
-    Attempt to craft items using the provided ingredients.
-    The ingredients will be consumed regardless of success.
+    Попытка создать предмет используя указанные ингредиенты.
+    Ингредиенты будут потрачены независимо от успеха крафта.
+    При желании можно использовать бустеры для увеличения шанса успеха.
     """
     result = await services.crafting_service.attempt_craft(
         current_user.id,
-        request.ingredients
+        request.ingredients,
+        request.applied_boosters if hasattr(request, 'applied_boosters') else None
     )
-    return CraftingAttemptResponse(**result)
+    return CraftingAttemptResponse.model_validate(result)
 
 
-@router.get(
-    "/recipes",
-    response_model=List[RecipeResponse],
+@router.post(
+    "/recipes/create",
+    response_model=RecipeResponse,
     dependencies=[Depends(get_current_user)]
 )
-async def get_active_recipes(
-    services: Services = Depends(get_services),
-) -> List[RecipeResponse]:
-    """Get all active recipes that can be crafted"""
-    recipes = await services.crafting_service.get_active_recipes()
-    return [RecipeResponse.from_orm(recipe) for recipe in recipes]
-
-
-@router.get(
-    "/known-recipes",
-    response_model=List[KnownRecipeResponse],
-    dependencies=[Depends(get_current_user)]
-)
-async def get_known_recipes(
+async def create_recipe(
+    request: RecipeCreateRequest,
     current_user: User = Depends(get_current_user),
     services: Services = Depends(get_services),
-) -> List[KnownRecipeResponse]:
-    """Get all recipes that the current user has attempted"""
-    known_recipes = await services.crafting_service.get_known_recipes(current_user.id)
-    return [KnownRecipeResponse.from_orm(recipe) for recipe in known_recipes]
+) -> RecipeResponse:
+    """Создание нового рецепта"""
+    recipe = await services.crafting_service.create_recipe(request)
+    return RecipeResponse.model_validate(recipe)

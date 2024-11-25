@@ -26,12 +26,15 @@ class InventoryService(Service):
 
     async def _get_inventory_with_items(self, user_id: int) -> Inventory:
         """Вспомогательный метод для получения инвентаря с загруженными предметами"""
-        inventory_query = await self.session.execute(
-            select(Inventory)
-            .options(joinedload(Inventory.stacks).joinedload(Stack.item))
-            .where(Inventory.user_id == user_id)
-        )
-        return inventory_query.unique().scalar_one_or_none()
+        try:
+            inventory_query = await self.session.execute(
+                select(Inventory)
+                .options(joinedload(Inventory.stacks).joinedload(Stack.item))
+                .where(Inventory.user_id == user_id)
+            )
+            return inventory_query.unique().scalar_one_or_none()
+        except SQLAlchemyError as e:
+            raise HTTPException(status_code=500, detail="Error fetching inventory")
 
     async def get_inventory(self, user_id: int) -> InventoryResponse:
         try:
@@ -41,8 +44,14 @@ class InventoryService(Service):
 
             if inventory is None:
                 raise HTTPException(status_code=404, detail="Inventory not found")
-
-            return InventoryResponse.from_orm(inventory)
+            
+            # Ensure all relationships are loaded
+            await self.session.refresh(inventory, ["stacks"])
+            for stack in inventory.stacks:
+                await self.session.refresh(stack, ["item"])
+            
+            # Create response after ensuring all data is loaded
+            return InventoryResponse.model_validate(inventory)
         except SQLAlchemyError as e:
             raise HTTPException(status_code=500, detail="Database error")
 
@@ -58,7 +67,7 @@ class InventoryService(Service):
 
             # Add items to inventory
             for stack_data in items_to_add:
-                # Get item info
+                # Получаем информацию о предмете
                 item_result = await self.session.execute(
                     select(Item).where(Item.id == stack_data.item_id)
                 )
@@ -69,18 +78,24 @@ class InventoryService(Service):
                         status_code=404, detail=f"Item {stack_data.item_id} not found"
                     )
 
+                # Проверяем максимальный размер стека для предмета
+                if stack_data.quantity <= 0:
+                    raise HTTPException(
+                        status_code=400, detail="Quantity must be greater than 0"
+                    )
+
                 if item.is_stacked:
-                    # Для стакающихся предметов ищем существующий стек
+                    # Для стакающихся предметов
                     existing_stack = next(
                         (stack for stack in inventory.stacks if stack.item_id == item.id),
                         None,
                     )
 
                     if existing_stack:
-                        # Если стек существует, увеличиваем количество
+                        # Увеличиваем количество в существующем стеке
                         existing_stack.quantity += stack_data.quantity
                     else:
-                        # Если стека нет, создаем новый
+                        # Создаем новый стек
                         new_stack = Stack(
                             inventory_id=inventory.id,
                             item_id=item.id,
@@ -88,149 +103,106 @@ class InventoryService(Service):
                         )
                         inventory.stacks.append(new_stack)
                 else:
-                    # Для не стакающихся предметов создаем отдельные стеки
+                    # Для не стакающихся предметов
                     for _ in range(stack_data.quantity):
                         new_stack = Stack(
-                            inventory_id=inventory.id, item_id=item.id, quantity=1
+                            inventory_id=inventory.id,
+                            item_id=item.id,
+                            quantity=1,
                         )
                         inventory.stacks.append(new_stack)
 
             await self.session.commit()
-            await self.session.refresh(inventory)
-            return InventoryResponse.from_orm(inventory)
+            return await self.get_inventory(user_id)
         except SQLAlchemyError as e:
             await self.session.rollback()
-            raise HTTPException(status_code=500, detail="Failed to transfer item")
+            raise HTTPException(status_code=500, detail="Failed to add items to inventory")
 
-    async def remove_items(
-        self, user_id: int, items_to_remove: list[StackBase]
-    ) -> InventoryResponse:
+    async def remove_items(self, user_id: int, items_to_remove: list[StackBase]) -> None:
+        """Удаление предметов из инвентаря"""
+        if not items_to_remove:
+            return
+
         try:
-            # Get inventory and stacks
             inventory = await self._get_inventory_with_items(user_id)
-
             if not inventory:
                 raise HTTPException(status_code=404, detail="Inventory not found")
 
-            # Remove items
             for stack_data in items_to_remove:
-                # Find stack with this item
-                existing_stack = next(
-                    (
-                        stack
-                        for stack in inventory.stacks
-                        if stack.item_id == stack_data.item_id
-                    ),
-                    None,
-                )
+                # Находим все стеки с нужным предметом
+                matching_stacks = [
+                    stack for stack in inventory.stacks 
+                    if stack.item_id == stack_data.item_id
+                ]
 
-                if not existing_stack:
+                if not matching_stacks:
                     raise HTTPException(
                         status_code=404,
-                        detail=f"Item {stack_data.item_id} not found in inventory",
+                        detail=f"Item {stack_data.item_id} not found in inventory"
                     )
 
-                if existing_stack.quantity < stack_data.quantity:
+                remaining_to_remove = stack_data.quantity
+                stacks_to_delete = []
+
+                # Удаляем предметы из стеков
+                for stack in matching_stacks:
+                    if stack.quantity <= remaining_to_remove:
+                        remaining_to_remove -= stack.quantity
+                        stacks_to_delete.append(stack)
+                    else:
+                        stack.quantity -= remaining_to_remove
+                        remaining_to_remove = 0
+                        break
+
+                if remaining_to_remove > 0:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Not enough items in stack. Have {existing_stack.quantity}, need {stack_data.quantity}",
+                        detail=f"Not enough items of type {stack_data.item_id}"
                     )
 
-                # Remove items from stack
-                existing_stack.quantity -= stack_data.quantity
-                if existing_stack.quantity == 0:
-                    inventory.stacks.remove(existing_stack)
-                    await self.session.delete(existing_stack)
+                # Удаляем пустые стеки
+                for stack in stacks_to_delete:
+                    await self.session.delete(stack)
 
             await self.session.commit()
-            await self.session.refresh(inventory)
-            return InventoryResponse.from_orm(inventory)
         except SQLAlchemyError as e:
             await self.session.rollback()
-            raise HTTPException(status_code=500, detail="Failed to transfer item")
+            raise HTTPException(status_code=500, detail="Failed to remove items from inventory")
 
-    async def has_items(self, user_id: int, items_to_check: list[StackCreate]) -> bool:
-        """
-        Функция проверяет наличие всех предметов в нужном количестве.
-        Возвращает False, если хотя бы один предмет отсутствует или его недостаточно.
-        Возвращает True только если все предметы найдены в достаточном количестве.
-        Проверка количества выполняется только если стек существует.
-        """
-        inventory = await self._get_inventory_with_items(user_id)
-
-        if not inventory:
+    async def has_items(self, user_id: int, items_to_check: list[StackBase]) -> bool:
+        """Проверка наличия предметов в инвентаре"""
+        if not items_to_check:
             return False
-
-        for stack_data in items_to_check:
-            existing_stack = next(
-                (
-                    stack
-                    for stack in inventory.stacks
-                    if stack.item_id == stack_data.item_id
-                ),
-                None,
-            )
-
-            if not existing_stack or existing_stack.quantity < stack_data.quantity:
+        try:
+            inventory = await self._get_inventory_with_items(user_id)
+            if not inventory:
                 return False
 
-        return True
+            for required_stack in items_to_check:
+                total_quantity = sum(
+                    stack.quantity
+                    for stack in inventory.stacks
+                    if stack.item_id == required_stack.item_id
+                )
+                
+                if total_quantity < required_stack.quantity:
+                    return False
 
-    async def transfer_item(self, from_user_id: int, to_user_id: int, item_id: int, quantity: int) -> None:
-        """
-        Передает предмет из инвентаря одного пользователя в инвентарь другого.
+            return True
+        except SQLAlchemyError:
+            raise HTTPException(status_code=500, detail="Error checking inventory items")
 
-        :param from_user_id: ID пользователя, отдающего предмет
-        :param to_user_id: ID пользователя, получающего предмет
-        :param item_id: ID передаваемого предмета
-        :param quantity: Количество передаваемых предметов
-        """
+    async def get_item_quantity(self, user_id: int, item_id: int) -> int:
+        """Получение количества определенного предмета в инвентаре"""
         try:
-            # Получаем инвентари обоих пользователей
+            inventory = await self._get_inventory_with_items(user_id)
+            if not inventory:
+                return 0
 
-            from_inventory = await self._get_inventory_with_items(from_user_id)
-            to_inventory = await self._get_inventory_with_items(to_user_id)
-
-            if not from_inventory or not to_inventory:
-                raise HTTPException(status_code=404, detail="Inventory not found")
-
-            # Находим стек с нужным предметом в инвентаре отправителя
-            from_stack = next((stack for stack in from_inventory.stacks if stack.item_id == item_id), None)
-
-            if not from_stack:
-                raise HTTPException(status_code=404, detail="Item not found in sender's inventory")
-
-            if from_stack.quantity < quantity:
-                raise HTTPException(status_code=400, detail="Not enough items in sender's inventory")
-
-            # Проверяем, можно ли передавать этот предмет
-            if from_stack.item.is_personal:
-                raise HTTPException(status_code=400, detail="This item cannot be transferred")
-
-            # Уменьшаем количество предметов в инвентаре отправителя
-            from_stack.quantity -= quantity
-
-            # Если стек стал пустым, удаляем его
-            if from_stack.quantity == 0:
-                from_inventory.stacks.remove(from_stack)
-                await self.session.delete(from_stack)
-
-            # Находим или создаем стек в инвентаре получателя
-            to_stack = next((stack for stack in to_inventory.stacks if stack.item_id == item_id), None)
-
-            if to_stack:
-                to_stack.quantity += quantity
-            else:
-                new_stack = Stack(inventory_id=to_inventory.id, item_id=item_id, quantity=quantity)
-                to_inventory.stacks.append(new_stack)
-                self.session.add(new_stack)
-
-            # Сохраняем изменения
-            await self.session.commit()
-
-            await self.session.refresh(from_inventory)
-            await self.session.refresh(to_inventory)
-        except SQLAlchemyError as e:
-            await self.session.rollback()
-            raise HTTPException(status_code=500, detail="Failed to transfer item")
-
+            return sum(
+                stack.quantity
+                for stack in inventory.stacks
+                if stack.item_id == item_id
+            )
+        except SQLAlchemyError:
+            raise HTTPException(status_code=500, detail="Error getting item quantity")

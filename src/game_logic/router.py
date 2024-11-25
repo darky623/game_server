@@ -11,6 +11,7 @@ from src.game_logic.routers.abilities_router import router as abilities_router
 from src.game_logic.routers.character_router import router as characters_router
 from src.game_logic.battle.router import router as battle_router
 from src.game_logic.routers.inventory_router import router as inventory_router
+from src.game_logic.routers.crafting_router import router as crafting_router
 
 
 router = APIRouter(prefix='/game_logic', tags=['Game Logic'])
@@ -25,3 +26,4 @@ router.include_router(biome_router)
 router.include_router(player_progress_router)
 router.include_router(battle_router)
 router.include_router(inventory_router)
+router.include_router(crafting_router)
