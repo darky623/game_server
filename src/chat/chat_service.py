@@ -18,7 +18,7 @@ class ChatService:
             chat = Chat(type=add_chat.type)
             users_query = select(User).where(User.id.in_(add_chat.user_ids))
             result = await session.execute(users_query)
-            users = result.scalars().all()
+            users = result.unique().scalars().all()
 
             if not users:
                 raise ValueError("Пользователей с такими id не найдено")
