@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -118,7 +120,7 @@ class InventoryService(Service):
             await self.session.rollback()
             raise HTTPException(status_code=500, detail="Failed to add items to inventory")
 
-    async def remove_items(self, user_id: int, items_to_remove: list[StackBase]) -> None:
+    async def remove_items(self, user_id: int, items_to_remove: List[StackBase]) -> None:
         """Удаление предметов из инвентаря"""
         if not items_to_remove:
             return

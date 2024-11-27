@@ -7,6 +7,9 @@ class StackBase(BaseModel):
     item_id: int
     quantity: int
 
+    class Config:
+        from_attributes = True
+
 
 class StackCreate(StackBase):
     inventory_id: int

@@ -4,14 +4,15 @@ from src.game_logic.schemas.inventory_schemas import StackBase
 
 
 class CraftingAttemptRequest(BaseModel):
-    ingredients: Dict[str, int]  # {"item_id": quantity}
-    applied_boosters: Optional[Dict[str, int]] = None
+    ingredients: List[StackBase]
+    applied_boosters: Optional[List[StackBase]] = None
 
 
 class CraftingAttemptResponse(BaseModel):
     success: bool
     crafted_item_id: Optional[int] = None
     message: str
+    quantity: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -35,7 +36,7 @@ class KnownRecipeResponse(BaseModel):
     id: int
     recipe_id: int
     user_id: int
-    success_chance: float
+    current_success_chance: float
     known_ingredients: Optional[List[StackBase]]
     recipe: Optional[RecipeResponse] = None
 
