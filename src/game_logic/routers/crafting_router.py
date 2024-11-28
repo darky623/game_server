@@ -6,7 +6,7 @@ from auth.user_service import get_current_user
 from config.deps import get_services
 from src.game_logic.schemas.crafting_schemas import (
     CraftingAttemptRequest,
-    CraftingAttemptResponse,
+    CraftAttemptResponse,
     KnownRecipeResponse,
     RecipeResponse,
     RecipeCreateRequest,
@@ -25,7 +25,7 @@ async def get_active_recipes(
     services: Services = Depends(get_services),
 ) -> List[RecipeResponse]:
     """Получить список всех активных рецептов, доступных для крафта"""
-    recipes = await services.crafting_service.get_all_active_recipes()
+    recipes = await services.crafting_service.get_all_recipes()
     return [RecipeResponse.model_validate(recipe) for recipe in recipes]
 
 
@@ -45,14 +45,14 @@ async def get_known_recipes(
 
 @router.post(
     "/attempt",
-    response_model=CraftingAttemptResponse,
+    response_model=CraftAttemptResponse,
     dependencies=[Depends(get_current_user)]
 )
 async def attempt_craft(
     request: CraftingAttemptRequest,
     current_user: User = Depends(get_current_user),
     services: Services = Depends(get_services),
-) -> CraftingAttemptResponse:
+) -> CraftAttemptResponse:
     """
     Попытка создать предмет используя указанные ингредиенты.
     Ингредиенты будут потрачены независимо от успеха крафта.
@@ -63,7 +63,7 @@ async def attempt_craft(
         request.ingredients,
         request.applied_boosters if hasattr(request, 'applied_boosters') else None
     )
-    return CraftingAttemptResponse.model_validate(result)
+    return CraftAttemptResponse.model_validate(result)
 
 
 @router.post(

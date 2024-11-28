@@ -12,7 +12,7 @@ from src.game_logic.schemas.inventory_schemas import (
     StackCreate,
 )
 from src.game_logic.services.service import Service
-
+from cache.client import cache_service
 
 class InventoryService(Service):
     async def _create_inventory(self, user_id: int) -> Inventory:
@@ -120,10 +120,10 @@ class InventoryService(Service):
             await self.session.rollback()
             raise HTTPException(status_code=500, detail="Failed to add items to inventory")
 
-    async def remove_items(self, user_id: int, items_to_remove: List[StackBase]) -> None:
+    async def remove_items(self, user_id: int, items_to_remove: List[StackBase]) -> InventoryResponse:
         """Удаление предметов из инвентаря"""
         if not items_to_remove:
-            return
+            return await self.get_inventory(user_id)
 
         try:
             inventory = await self._get_inventory_with_items(user_id)
@@ -131,6 +131,18 @@ class InventoryService(Service):
                 raise HTTPException(status_code=404, detail="Inventory not found")
 
             for stack_data in items_to_remove:
+                # Получаем информацию о предмете
+                item_result = await self.session.execute(
+                    select(Item).where(Item.id == stack_data.item_id)
+                )
+                item = item_result.scalar_one_or_none()
+                
+                if not item:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Item {stack_data.item_id} not found"
+                    )
+
                 # Находим все стеки с нужным предметом
                 matching_stacks = [
                     stack for stack in inventory.stacks 
@@ -146,15 +158,27 @@ class InventoryService(Service):
                 remaining_to_remove = stack_data.quantity
                 stacks_to_delete = []
 
-                # Удаляем предметы из стеков
-                for stack in matching_stacks:
-                    if stack.quantity <= remaining_to_remove:
-                        remaining_to_remove -= stack.quantity
-                        stacks_to_delete.append(stack)
-                    else:
-                        stack.quantity -= remaining_to_remove
-                        remaining_to_remove = 0
-                        break
+                if item.is_stacked:
+                    # Для стакающихся предметов
+                    # Удаляем предметы из стеков
+                    for stack in matching_stacks:
+                        if stack.quantity <= remaining_to_remove:
+                            remaining_to_remove -= stack.quantity
+                            stacks_to_delete.append(stack)
+                        else:
+                            stack.quantity -= remaining_to_remove
+                            remaining_to_remove = 0
+                            break
+                else:
+                    # Для не стакающихся предметов
+                    # Просто удаляем нужное количество стеков
+                    if len(matching_stacks) < stack_data.quantity:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Not enough items of type {stack_data.item_id}"
+                        )
+                    stacks_to_delete = matching_stacks[:stack_data.quantity]
+                    remaining_to_remove = 0
 
                 if remaining_to_remove > 0:
                     raise HTTPException(
@@ -164,9 +188,12 @@ class InventoryService(Service):
 
                 # Удаляем пустые стеки
                 for stack in stacks_to_delete:
+                    inventory.stacks.remove(stack)
                     await self.session.delete(stack)
 
             await self.session.commit()
+            return await self.get_inventory(user_id)
+            
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise HTTPException(status_code=500, detail="Failed to remove items from inventory")

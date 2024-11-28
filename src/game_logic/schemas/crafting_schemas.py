@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from src.game_logic.schemas.inventory_schemas import StackBase
 
 
@@ -8,11 +8,19 @@ class CraftingAttemptRequest(BaseModel):
     applied_boosters: Optional[List[StackBase]] = None
 
 
-class CraftingAttemptResponse(BaseModel):
+class CraftAttemptResponse(BaseModel):
+    """Ответ на попытку крафта"""
     success: bool
     crafted_item_id: Optional[int] = None
+    crafted_quantity: Optional[int] = None
+    discovered_recipes: List['DiscoveredRecipeInfo'] = []
     message: str
-    quantity: Optional[int] = None
+    # Добавляем новые поля для более подробной информации
+    used_ingredients: List[Dict[str, Any]] = []  # Использованные ингредиенты
+    used_boosters: List[Dict[str, Any]] = []  # Использованные бустеры
+    recipe_id: Optional[int] = None  # ID найденного рецепта
+    craft_chance: Optional[float] = None  # Шанс успеха крафта
+    discovery_mode: bool = False  # Был ли это режим исследования (когда рецепт не найден полностью)
 
     class Config:
         from_attributes = True
@@ -64,3 +72,11 @@ class RecipeCreateRequest(BaseModel):
         if not 1 <= len(v) <= 6:
             raise ValueError("Recipe must have between 1 and 6 ingredients")
         return v
+
+
+class DiscoveredRecipeInfo(BaseModel):
+    """Информация об отгаданном рецепте"""
+    recipe_id: int
+    result_item_id: int
+    discovery_progress: float
+    known_ingredients: List[Dict[str, Any]]
