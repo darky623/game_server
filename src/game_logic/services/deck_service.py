@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
 
 from starlette import status
 
@@ -84,30 +85,39 @@ class DeckService(Service):
             )
 
     async def get_deck(self, deck_id: int) -> Optional[DeckSchema]:
-        """Возвращает колоду по ID.
+        """Возвращает колоду по ID с полной информацией о героях.
         Args:
             deck_id (int): ID колоды
         Returns:
-            DeckSchema: Колода
+            DeckSchema: Колода с полной информацией о героях
         """
         try:
-            deck = await self.session.execute(select(Deck)
-                                              .where(Deck.id == deck_id))
-            deck = deck.scalars().first()
+            query = (
+                select(Deck)
+                .options(
+                    joinedload(Deck.characters)
+                    .joinedload(DeckCharacter.character)
+                )
+                .where(Deck.id == deck_id)
+            )
+            result = await self.session.execute(query)
+            deck = result.unique().scalars().first()
+
             if not deck:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Deck not found"
                 )
+
             return DeckSchema.from_orm(deck)
         except SQLAlchemyError as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database error: {e}",
+                detail=f"Database error: {e}"
             )
 
     async def get_user_decks(self, user_id: int) -> List[DeckSchema]:
-        """Возвращает все колоды пользователя.
+        """Возвращает все колоды пользователя. Без информации о героях
         Args:
             user_id (int): ID юзера
         Returns:
@@ -229,22 +239,35 @@ class DeckService(Service):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 detail=f"Database error: {e}")
 
-    async def get_active_deck(self, user_id: int) -> Optional[Deck]:
-        """Возвращает активную колоду пользователя.
+    async def get_active_deck(self, user_id: int) -> Optional[DeckSchema]:
+        """Возвращает активную колоду пользователя с полной информацией о героях.
         Args:
             user_id (int): ID юзера
         Returns:
-            DeckSchema: Активная колода, если она есть, None иначе
+            DeckSchema: Активная колода с полной информацией о героях, если она есть, None иначе
         """
-        result = await self.session.execute(
-            select(Deck)
-            .where(Deck.user_id == user_id, Deck.is_active == True)
-            .limit(1)
-        )
-        deck = result.scalars().first()
-        if not result:
-            return None
-        return DeckSchema.from_orm(deck)
+        try:
+            query = (
+                select(Deck)
+                .options(
+                    joinedload(Deck.characters)
+                    .joinedload(DeckCharacter.character)
+                )
+                .where(Deck.user_id == user_id, Deck.is_active == True)
+                .limit(1)
+            )
+            result = await self.session.execute(query)
+            deck = result.unique().scalars().first()
+
+            if not deck:
+                return None
+
+            return DeckSchema.from_orm(deck)
+        except SQLAlchemyError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error: {e}"
+            )
 
     async def get_current_characters_in_deck(self,
                                              user_id: int,

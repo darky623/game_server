@@ -1,4 +1,6 @@
-from pydantic import BaseModel, validator
+from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class AddChatSchema(BaseModel):
@@ -6,9 +8,21 @@ class AddChatSchema(BaseModel):
     user_ids: list[int]
 
 
-class ChatSchema(BaseModel):
+class ChatSchema(AddChatSchema):
     id: int
-    type: str
 
-    class Config:
-        from_attributes = True
+    class Meta:
+        orm_mode = True
+
+
+class MessageSchema(BaseModel):
+    id: int
+    text: str
+    chat_id: int
+    user_id: int
+    timestamp: datetime
+
+    class Meta:
+        orm_mode = True
+
+

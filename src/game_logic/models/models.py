@@ -1,10 +1,18 @@
 from email.policy import default
 
-from sqlalchemy import Column, Float, Integer, ForeignKey, String, Table, Enum, orm, ColumnElement
+from sqlalchemy import (
+    Column,
+    Float,
+    Integer,
+    ForeignKey,
+    String,
+    Table,
+    Enum,
+    orm,
+)
 from sqlalchemy.orm import relationship
 from config.database import Base
 import enum
-
 
 character_items = Table(
     "character_items",
@@ -66,7 +74,7 @@ class Character(Base):
     avatar = Column(String)
     stardom = Column(Integer)
     level = Column(Integer)
-
+    power = Column(Integer, default=0)
     base_params = None
     abilities = []
 
@@ -221,7 +229,7 @@ class SummandParams(Base):
                 resistance=self.resistance * other,
                 evasion=self.evasion * other,
             )
-        if isinstance(other, MultiplierParams):
+        elif isinstance(other, MultiplierParams):
             return other * self
         return NotImplemented
 
@@ -301,7 +309,7 @@ class Ability(Base):
 
     name = Column(String)
     icon = Column(String)
-    visual = Column(String, default='noetic')
+    visual = Column(String, default="noetic")
 
     tier = Column(Integer, nullable=False, default=0)
 

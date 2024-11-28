@@ -1,6 +1,9 @@
-from pydantic import BaseModel
-from typing_extensions import Optional
+from typing import Optional
 
+from pydantic import BaseModel
+from pydantic.v1 import root_validator
+
+from src.game_logic.models.models import Character
 from src.game_logic.schemas.ability_schema import AbilitySchema
 from src.game_logic.schemas.class_schema import CharacterClassSchema, CharacterSubclassSchema
 from src.game_logic.schemas.item_schema import ItemSchema
@@ -25,9 +28,17 @@ class AddCharacterSchema(BaseModel):
 
     stardom: int
     level: int
+    power: Optional[int] = None
 
     class Config:
         from_attributes = True
+
+    @root_validator(pre=True)
+    def calculate_power(cls, values):
+        # Используйте ваш метод calculate_power из модели Character
+        character = Character(**values)
+        values['power'] = character.calculate_power()
+        return values
 
 
 class CharacterSchema(AddCharacterSchema):
@@ -37,6 +48,9 @@ class CharacterSchema(AddCharacterSchema):
     race: RaceSchema
     character_class: CharacterClassSchema
     subclass: CharacterSubclassSchema
+
+    class Config:
+        from_attributes = True
 
 
 class EditCharacterSchema(BaseModel):

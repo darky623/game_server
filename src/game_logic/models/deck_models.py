@@ -37,7 +37,7 @@ class DeckCharacter(Base):
     position = Column(Integer)  # Позиция в колоде (0-9)
 
     deck = relationship("Deck", back_populates="characters")
-    character = relationship("Character")
+    character = relationship("Character", lazy="joined")
 
     def serialize(self):
         return {
