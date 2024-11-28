@@ -1,0 +1,286 @@
+{
+  "battle_log": [
+    {
+      "steps": [
+        {
+          "id": 1,
+          "name": "human-2",
+          "health": 1031.4123376623377,
+          "class": "human",
+          "subclass": "super",
+          "stars": 1,
+          "lvl": 2,
+          "params": {
+            "damage": 39.6,
+            "vitality": 1093.75,
+            "speed": 11.880000000000003,
+            "resistance": 0.6352500000000001,
+            "evasion": 0
+          },
+          "imposed": {
+            "immunity": [
+              "bleeding"
+            ],
+            "effects": [
+              "bleeding"
+            ]
+          }
+        },
+        {
+          "initiator": 1,
+          "targets": [
+            1
+          ],
+          "ability": "human-war-01-02",
+          "result": [
+            {
+              "id": 1,
+              "name": "human-2",
+              "health": 952.7031680440772,
+              "class": "human",
+              "subclass": "super",
+              "stars": 1,
+              "lvl": 2,
+              "params": {
+                "damage": 39.6,
+                "vitality": 1093.75,
+                "speed": 11.880000000000003,
+                "resistance": 0.6352500000000001,
+                "evasion": 0
+              },
+              "imposed": {
+                "immunity": [
+                  "bleeding"
+                ],
+                "effects": [
+                  "bleeding"
+                ]
+              }
+            }
+          ],
+          "icon": "#",
+          "visual": "noetic"
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "initiator": 0,
+          "targets": [
+            0
+          ],
+          "ability": "human-war-01-02",
+          "result": [
+            {
+              "id": 0,
+              "name": "human-1",
+              "health": 507.62249114521853,
+              "class": "human",
+              "subclass": "super",
+              "stars": 1,
+              "lvl": 2,
+              "params": {
+                "damage": 39.6,
+                "vitality": 743.75,
+                "speed": 11.880000000000003,
+                "resistance": 0.6352500000000001,
+                "evasion": 0
+              },
+              "imposed": {
+                "immunity": [
+                  "bleeding"
+                ],
+                "effects": []
+              }
+            }
+          ],
+          "icon": "#",
+          "visual": "noetic"
+        },
+        {
+          "initiator": 1,
+          "targets": [
+            1
+          ],
+          "ability": "human-war-01-02",
+          "result": [
+            {
+              "id": 1,
+              "name": "human-2",
+              "health": 716.5756591892956,
+              "class": "human",
+              "subclass": "super",
+              "stars": 1,
+              "lvl": 2,
+              "params": {
+                "damage": 39.6,
+                "vitality": 1093.75,
+                "speed": 11.880000000000003,
+                "resistance": 0.6352500000000001,
+                "evasion": 0
+              },
+              "imposed": {
+                "immunity": [
+                  "bleeding"
+                ],
+                "effects": [
+                  "bleeding"
+                ]
+              }
+            }
+          ],
+          "icon": "#",
+          "visual": "noetic"
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "initiator": 0,
+          "targets": [
+            0
+          ],
+          "ability": "human-war-01-02",
+          "result": [
+            {
+              "id": 0,
+              "name": "human-1",
+              "health": 271.49498229043695,
+              "class": "human",
+              "subclass": "super",
+              "stars": 1,
+              "lvl": 2,
+              "params": {
+                "damage": 39.6,
+                "vitality": 743.75,
+                "speed": 11.880000000000003,
+                "resistance": 0.6352500000000001,
+                "evasion": 0
+              },
+              "imposed": {
+                "immunity": [
+                  "bleeding"
+                ],
+                "effects": []
+              }
+            }
+          ],
+          "icon": "#",
+          "visual": "noetic"
+        },
+        {
+          "initiator": 1,
+          "targets": [
+            1
+          ],
+          "ability": "human-war-01-02",
+          "result": [
+            {
+              "id": 1,
+              "name": "human-2",
+              "health": 480.448150334514,
+              "class": "human",
+              "subclass": "super",
+              "stars": 1,
+              "lvl": 2,
+              "params": {
+                "damage": 39.6,
+                "vitality": 1093.75,
+                "speed": 11.880000000000003,
+                "resistance": 0.6352500000000001,
+                "evasion": 0
+              },
+              "imposed": {
+                "immunity": [
+                  "bleeding"
+                ],
+                "effects": [
+                  "bleeding"
+                ]
+              }
+            }
+          ],
+          "icon": "#",
+          "visual": "noetic"
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "initiator": 0,
+          "targets": [
+            0
+          ],
+          "ability": "human-war-01-02",
+          "result": [
+            {
+              "id": 0,
+              "name": "human-1",
+              "health": 35.3674734356554,
+              "class": "human",
+              "subclass": "super",
+              "stars": 1,
+              "lvl": 2,
+              "params": {
+                "damage": 39.6,
+                "vitality": 743.75,
+                "speed": 11.880000000000003,
+                "resistance": 0.6352500000000001,
+                "evasion": 0
+              },
+              "imposed": {
+                "immunity": [
+                  "bleeding"
+                ],
+                "effects": []
+              }
+            }
+          ],
+          "icon": "#",
+          "visual": "noetic"
+        },
+        {
+          "initiator": 1,
+          "targets": [
+            1
+          ],
+          "ability": "human-war-01-02",
+          "result": [
+            {
+              "id": 1,
+              "name": "human-2",
+              "health": 244.32064147973247,
+              "class": "human",
+              "subclass": "super",
+              "stars": 1,
+              "lvl": 2,
+              "params": {
+                "damage": 39.6,
+                "vitality": 1093.75,
+                "speed": 11.880000000000003,
+                "resistance": 0.6352500000000001,
+                "evasion": 0
+              },
+              "imposed": {
+                "immunity": [
+                  "bleeding"
+                ],
+                "effects": [
+                  "bleeding"
+                ]
+              }
+            }
+          ],
+          "icon": "#",
+          "visual": "noetic"
+        }
+      ]
+    }
+  ],
+  "result": {
+    "winner": "team_2"
+  }
+}

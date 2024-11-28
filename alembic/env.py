@@ -21,14 +21,15 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from auth.models import *
-from game_logic.models import *
-from chat.models import *
-from bioms.models import *
-from friends.models import *
-from clan.models import *
-from game_logic.models.deck_models import *
-from database import Base
-from config import db_url
+
+from src.chat.models import *
+from src.game_logic.models.models import *
+from src.game_logic.models.deck_models import *
+from src.game_logic.models.biome_models import *
+from src.friends.models import *
+from src.clan.models import *
+from config.database import Base
+from config.config import db_url
 target_metadata = Base.metadata
 
 config.set_main_option('sqlalchemy.url', db_url)

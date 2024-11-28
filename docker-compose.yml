@@ -20,6 +20,7 @@ services:
       timeout: 5s
       retries: 5
 
+
   backend:
     build:
       context: .
@@ -27,16 +28,11 @@ services:
     container_name: backend
     env_file:
       - .env
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro  # Mount SSL certificates
     ports:
-      - "443:8000"  # Changed to 443 for HTTPS
+      - "80:8000"
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      - SSL_KEYFILE=/etc/letsencrypt/live/lotw-api.clava.space/privkey.pem
-      - SSL_CERTFILE=/etc/letsencrypt/live/lotw-api.clava.space/fullchain.pem
 
 volumes:
-  pg_data:
+    pg_data:
