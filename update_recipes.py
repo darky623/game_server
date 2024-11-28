@@ -4,7 +4,6 @@ import json
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.database import async_session_maker
 from src.game_logic.models.crafting_models import Recipe
 
 
@@ -21,7 +20,7 @@ def create_ingredient_hash(ingredients: list) -> str:
 
 async def update_existing_recipes():
     """Обновляет существующие рецепты, добавляя хэши ингредиентов"""
-    async with async_session_maker() as session:
+    async with AsyncSession() as session:
         try:
             # Получаем все рецепты
             result = await session.execute(select(Recipe))
