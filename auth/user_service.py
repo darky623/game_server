@@ -1,11 +1,13 @@
 import json
 from datetime import datetime, timedelta
+from typing import Callable
 
 from sqlalchemy import select
 
 from aiohttp import ClientSession
 from fastapi import Depends, HTTPException, WebSocket
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import joinedload
 from starlette import status
 
 from config import config
@@ -14,15 +16,25 @@ from auth.models import User, AuthSession
 
 http_bearer = HTTPBearer()
 
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
-    credentials_exception = HTTPException(
+credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+async def get_current_user_with_related(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
     token = credentials.credentials
-    user = await check_auth_token(token)
+    user = await check_auth_token(token, True)
+    if not user:
+        raise credentials_exception
+    return user
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> User:
+    token = credentials.credentials
+    print(token)
+    user = await check_auth_token(token, False)
     if not user:
         raise credentials_exception
     return user
@@ -42,14 +54,10 @@ async def websocket_authentication(websocket: WebSocket) -> User:
         user.last_login = datetime.now()
         return user
     else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token missing or invalid",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise credentials_exception
 
 
-async def check_auth_token(token: str):
+async def check_auth_token(token: str, load_related: bool = False) -> User:
     user = None
     async with AsyncSessionFactory() as db:
         result = await db.execute(select(AuthSession).where(
@@ -58,12 +66,18 @@ async def check_auth_token(token: str):
         auth = result.scalars().first()
         if auth:
             if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
-                user = auth.user
+                if load_related:
+                    user_result = await db.execute(
+                        select(User).options(joinedload(User.characters)).where(User.id == auth.user_id)
+                    )
+                    user = user_result.scalars().first()
+                else:
+                    user = auth.user
             else:
                 auth.status = 'expired'
                 await db.commit()
         else:
-            user = await check_remote_auth_token(token)
+            user = await check_remote_auth_token(token, load_related)
 
     return user
 
@@ -82,7 +96,7 @@ def validate_form_data(byte_str: bytes, required_fields: list):
         return data, None
 
 
-async def check_remote_auth_token(token: str):
+async def check_remote_auth_token(token: str, load_related: bool = False):
     headers = {'Authorization': f'Bearer {token}'}
     async with ClientSession() as session:
         async with session.get(f'{config.auth_server}/token', headers=headers) as resp:
@@ -99,7 +113,13 @@ async def check_remote_auth_token(token: str):
                     auth_session = AuthSession(token=data['auth']['token'],
                                                create_date=datetime.strptime(data['auth']['create_date'],
                                                                              config.dt_format))
-                    result = await db.execute(select(User).where(User.username == str(data['user']['username'])))
+                    if load_related:
+                        result = await db.execute(select(User)
+                                                  .options(joinedload(User.characters))
+                                                  .where(User.username == str(data['user']['username']))
+                                                  )
+                    else:
+                        result = await db.execute(select(User).where(User.username == str(data['user']['username'])))
                     user = result.scalars().first()
                     if not user:
                         user = User(username=data['user']['username'],

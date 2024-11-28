@@ -1,13 +1,14 @@
+from enum import Enum, auto
 import json
 from fastapi import HTTPException
+
+from src.game_logic.battle.observer.subject import Subject
 from src.game_logic.battle.schemas import RoundLogSchema, BattleResultSchema
 
 
-class Battle:
-    def __init__(self,
-                 team1: list,
-                 team2: list,
-                 max_rounds: int = 10):
+class Battle(Subject):
+    def __init__(self, team1: list, team2: list, max_rounds: int = 10):
+        super().__init__()
         if not len(team1) or not len(team2):
             raise HTTPException(status_code=400, detail='В команде должен быть хотя бы один герой')
 
@@ -21,8 +22,11 @@ class Battle:
         self.rounds = []
         self.set_battle_ids()
         self.__set_teammates()
+        self.__sign_observers()
 
     def start(self):
+        start_result = self.start_update()
+        self.rounds.append(RoundLogSchema(id=0, steps=start_result))
         while not self.is_battle_over():
             self.rounds.append(self.play_round())
             self.round_update()
@@ -75,16 +79,38 @@ class Battle:
             character.set_id_in_battle(i)
             i += 1
 
-    def round_update(self):
+    def __sign_observers(self):
         for character in self.team1:
-            character.round_update()
+            self.add_observer(character)
         for character in self.team2:
-            character.round_update()
+            self.add_observer(character)
+
+    def round_update(self):
+        result = self.notify(BattleEvent.NEW_ROUND)
+        return result
+        # for character in self.team1:
+        #     character.round_update()
+        # for character in self.team2:
+        #     character.round_update()
+
+    def start_update(self):
+        result = self.notify(BattleEvent.START)
+        return result
 
     def __get_result(self):
         if self.is_battle_over():
             return {'winner': ('team_1' if any(c.is_alive() > 0 for c in self.team1) and all(c.is_dead() <= 0 for c in self.team2) else 'team_2')}
         return {'winner': 'team_2'}
+
+
+class BattleEvent(Enum):
+    START = auto()
+    NEW_ROUND = auto()
+    DAMAGED = auto()
+    HEALING = auto()
+    IMPOSED = auto()
+    BUFF = auto()
+    DEBUFF = auto()
 
 
 class BattleLog:
