@@ -350,3 +350,147 @@ class CraftingService(Service):
                 status_code=500,
                 detail=f"Error creating recipe: {str(e)}"
             )
+
+    async def _roll_craft_success(self, known_recipe: KnownRecipe) -> bool:
+        """Проверка успешности крафта с учетом шанса"""
+        import random
+
+        total_chance = known_recipe.current_success_chance
+        if known_recipe.applied_boosters:
+            for booster in known_recipe.applied_boosters:
+                if booster.get("expires_at"):
+                    # Проверяем, не истек ли срок действия бустера
+                    expires_at = datetime.fromisoformat(booster["expires_at"])
+                    if expires_at > datetime.now():
+                        total_chance += booster.get("bonus", 0)
+                else:
+                    total_chance += booster.get("bonus", 0)
+
+        return random.random() * 100 <= min(total_chance, 99)
+
+    async def _get_or_create_known_recipe(
+        self, user_id: int, recipe_id: int
+    ) -> KnownRecipe:
+        """Получение или создание записи об известном рецепте"""
+        result = await self.session.execute(
+            select(KnownRecipe).where(
+                KnownRecipe.user_id == user_id,
+                KnownRecipe.recipe_id == recipe_id
+            )
+        )
+        known_recipe = result.scalar_one_or_none()
+
+        if not known_recipe:
+            known_recipe = KnownRecipe(
+                user_id=user_id,
+                recipe_id=recipe_id,
+                known_ingredients={
+                    "matched": [],
+                    "total_required": 0,
+                    "discovery_progress": 0
+                },
+                current_success_chance=75.0,
+                applied_boosters=[],
+                last_craft_attempt=datetime.now()
+            )
+            self.session.add(known_recipe)
+            await self.session.commit()
+
+        return known_recipe
+
+    async def get_known_recipes(self, user_id: int) -> List[KnownRecipeResponse]:
+        """Получение всех известных рецептов пользователя"""
+        result = await self.session.execute(
+            select(KnownRecipe)
+            .options(joinedload(KnownRecipe.recipe))
+            .where(KnownRecipe.user_id == user_id)
+        )
+        known_recipes = result.scalars().all()
+        return [KnownRecipeResponse.model_validate(r) for r in known_recipes]
+
+    async def toggle_recipe_favorite(self, user_id: int, recipe_id: int) -> KnownRecipe:
+        """Добавление/удаление рецепта из избранного"""
+        known_recipe = await self._get_or_create_known_recipe(user_id, recipe_id)
+        known_recipe.is_favorite = not known_recipe.is_favorite
+        await self.session.commit()
+        return known_recipe
+
+    async def apply_booster(
+        self, user_id: int, recipe_id: int, booster_id: int, bonus: float,
+        duration_hours: Optional[int] = None
+    ) -> KnownRecipe:
+        """Применение усилителя к рецепту"""
+        known_recipe = await self._get_or_create_known_recipe(user_id, recipe_id)
+
+        # Проверяем, не применен ли уже такой бустер
+        for booster in known_recipe.applied_boosters:
+            if booster["booster_id"] == booster_id:
+                if booster.get("expires_at"):
+                    expires_at = datetime.fromisoformat(booster["expires_at"])
+                    if expires_at > datetime.now():
+                        raise HTTPException(400, "This booster is already active")
+                else:
+                    raise HTTPException(400, "This booster is already applied")
+
+        booster_data = {"booster_id": booster_id, "bonus": bonus}
+        if duration_hours:
+            booster_data["expires_at"] = (
+                datetime.now() + timedelta(hours=duration_hours)
+            ).isoformat()
+
+        if not known_recipe.applied_boosters:
+            known_recipe.applied_boosters = []
+        known_recipe.applied_boosters.append(booster_data)
+
+        await self.session.commit()
+        return known_recipe
+
+    async def _ingredients_match(self, ingredients: List[StackBase]) -> List[RecipeResponse]:
+        """
+        Проверяет совпадения ингредиентов с рецептами в базе данных.
+        Возвращает список рецептов, которые частично доступны игроку.
+        """
+        ingredient_counts = defaultdict(int)
+        for ing in ingredients:
+            ingredient_counts[ing.item_id] += ing.quantity
+
+        result = await self.session.execute(
+            select(Recipe).where(Recipe.is_active == True)
+        )
+        recipes = result.scalars().all()
+        
+        available_recipes = []
+        for recipe in recipes:
+            matching_ingredients = 0
+            missing_ingredients = []
+
+            for ingredient in recipe.ingredients:
+                if ingredient["item_id"] in ingredient_counts:
+                    if ingredient_counts[ingredient["item_id"]] >= ingredient["quantity"]:
+                        matching_ingredients += 1
+                    else:
+                        missing_ingredients.append({
+                            "item_id": ingredient["item_id"],
+                            "quantity": ingredient["quantity"] - ingredient_counts[ingredient["item_id"]]
+                        })
+                else:
+                    missing_ingredients.append({
+                        "item_id": ingredient["item_id"],
+                        "quantity": ingredient["quantity"]
+                    })
+
+            if matching_ingredients > 0:
+                available_recipes.append(
+                    RecipeResponse(
+                        id=recipe.id,
+                        result_item_id=recipe.result_item_id,
+                        result_quantity=recipe.result_quantity,
+                        ingredients=recipe.ingredients,
+                        matching_ingredients=matching_ingredients,
+                        missing_ingredients=missing_ingredients,
+                        rarity=recipe.rarity,
+                        success_chance=recipe.success_chance
+                    )
+                )
+
+        return available_recipes
