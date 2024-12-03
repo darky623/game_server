@@ -47,6 +47,7 @@ class CraftingService(Service):
         user_id: int,
         ingredients: List[StackBase],
         applied_boosters: List[StackBase] | None = None,
+        craft_count: int = 1
     ) -> CraftAttemptResponse:
         """
         Попытка крафта предметов. Игрок может отправить от 1 до 6 ингредиентов.
@@ -61,6 +62,11 @@ class CraftingService(Service):
         if len(ingredients) > 6:
             raise HTTPException(
                 status_code=400, detail="Too many ingredients (max 6)"
+            )
+
+        if applied_boosters and len(applied_boosters) > 3:
+            raise HTTPException(
+                status_code=400, detail="Too many boosters (max 3)"
             )
 
         try:
@@ -78,19 +84,6 @@ class CraftingService(Service):
             
             # Ищем подходящий активный рецепт по хэшу
             recipe = await self._find_matching_recipe(ingredients, ingredients_hash, user_id, discovered_recipes)
-
-            # Проверяем и применяем бустеры
-            if applied_boosters and recipe:
-                recipe = await self._apply_boosters(
-                    user_id, recipe, applied_boosters
-                )
-
-            # Удаляем ингредиенты из инвентаря
-            await self.inventory_service.remove_items(user_id, ingredients)
-            if applied_boosters:
-                await self.inventory_service.remove_items(
-                    user_id, applied_boosters
-                )
 
             # Если рецепт не найден
             if not recipe:
@@ -120,8 +113,19 @@ class CraftingService(Service):
                 user_id, recipe.id
             )
 
-            # Проверяем успешность крафта
-            craft_chance = await self._calculate_craft_chance(known_recipe)
+            # Применяем бустеры только к текущей попытке
+            booster_bonus = 0
+            used_boosters = []
+            if applied_boosters:
+                booster_bonus, used_boosters = await self._apply_boosters(
+                    user_id, recipe, applied_boosters
+                )
+
+            # Удаляем ингредиенты из инвентаря
+            await self.inventory_service.remove_items(user_id, ingredients)
+
+            # Проверяем успешность крафта с учетом временных бустеров
+            craft_chance = await self._calculate_craft_chance(known_recipe, booster_bonus)
             if not await self._roll_craft_success(known_recipe):
                 await self._create_craft_attempt(
                     user_id, recipe, ingredients, applied_boosters
@@ -142,7 +146,7 @@ class CraftingService(Service):
                 [
                     StackBase(
                         item_id=recipe.result_item_id,
-                        quantity=recipe.result_quantity,
+                        quantity=recipe.result_quantity * craft_count,
                     )
                 ],
             )
@@ -155,9 +159,9 @@ class CraftingService(Service):
             return CraftAttemptResponse(
                 success=True,
                 crafted_item_id=recipe.result_item_id,
-                crafted_quantity=recipe.result_quantity,
+                crafted_quantity=recipe.result_quantity * craft_count,
                 discovered_recipes=discovered_recipes,
-                message="Craft successful! You've created something new!",
+                message="Craft successful!",
                 used_ingredients=[{"item_id": ing.item_id, "quantity": ing.quantity} for ing in ingredients],
                 used_boosters=[{"item_id": b.item_id, "quantity": b.quantity} for b in (applied_boosters or [])],
                 recipe_id=recipe.id,
@@ -180,7 +184,8 @@ class CraftingService(Service):
                 select(Recipe).where(
                     and_(
                         Recipe.ingredient_hash == ingredients_hash,
-                        Recipe.is_active == True
+                        Recipe.is_active == True,
+                        Recipe.is_secret == False
                     )
                 )
             )
@@ -369,35 +374,116 @@ class CraftingService(Service):
         user_id: int,
         recipe: Recipe,
         boosters: List[StackBase]
-    ):
-        """Применяет бустеры к рецепту"""
+    ) -> Tuple[float, List[Dict]]:
+        """
+        Применяет бустеры к текущей попытке крафта.
+        Возвращает бонус к шансу крафта и список примененных бустеров.
+        """
         if not await self.inventory_service.has_items(user_id, boosters):
             raise HTTPException(
                 status_code=400,
                 detail="Not enough boosters in inventory"
             )
 
+        # Получаем информацию о каждом бустере
+        booster_items = []
+        for booster in boosters:
+            item = await self.session.execute(
+                select(Item).where(Item.id == booster.item_id)
+            )
+            item = item.scalar_one_or_none()
+            if not item or not item.item_data or item.item_data.get('type') != 'craft_booster':
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Item {booster.item_id} is not a valid crafting booster"
+                )
+            booster_items.append((item, booster.quantity))
+
+        # Тратим бустеры
         await self.inventory_service.remove_items(user_id, boosters)
 
-        total_bonus = sum(
-            booster.quantity for booster in boosters
-        )
-        recipe.success_chance = min(
-            recipe.success_chance + total_bonus,
-            99.0
-        )
+        # Считаем общий бонус и собираем информацию о примененных бустерах
+        total_bonus = 0
+        applied_boosters = []
+        for item, quantity in booster_items:
+            bonus = item.item_data.get('bonus', 0)
+            for _ in range(quantity):
+                total_bonus += bonus
+                applied_boosters.append({
+                    "booster_id": item.id,
+                    "bonus": bonus
+                })
 
+        return total_bonus, applied_boosters
+
+    async def _calculate_craft_chance(
+        self, 
+        known_recipe: KnownRecipe,
+        booster_bonus: float = 0
+    ) -> float:
+        """Рассчитывает шанс крафта с учетом временных бустеров"""
+        # Получаем базовый шанс из рецепта
+        recipe = await self.session.execute(
+            select(Recipe).where(Recipe.id == known_recipe.recipe_id)
+        )
+        recipe = recipe.scalar_one()
+        
+        # Добавляем бонус от временных бустеров
+        total_chance = recipe.success_chance + booster_bonus
+
+        # Ограничиваем максимальный шанс до 99%
+        return min(total_chance, 99.0)
+
+    async def get_all_recipes(self) -> List[Recipe]:
+        """Получение всех активных рецептов"""
+        result = await self.session.execute(
+            select(Recipe).where(
+                and_(
+                    Recipe.is_active == True,
+                    Recipe.is_secret == False
+                )
+            )
+        )
+        return result.scalars().all()
+
+    async def get_recipe(self, recipe_id: int, user_id: int = None) -> Optional[Recipe]:
+        """Получение рецепта по ID"""
+        query = select(Recipe).where(Recipe.id == recipe_id)
+        
+        # Для секретных рецептов проверяем, знает ли пользователь хотя бы часть ингредиентов
+        if user_id:
+            known_recipe = await self.session.execute(
+                select(KnownRecipe).where(
+                    KnownRecipe.recipe_id == recipe_id,
+                    KnownRecipe.user_id == user_id
+                )
+            )
+            known_recipe = known_recipe.scalar_one_or_none()
+            
+            if known_recipe and known_recipe.known_ingredients:
+                return await self.session.execute(query)
+            
+            # Если рецепт секретный и пользователь не знает ингредиентов, возвращаем None
+            recipe = await self.session.execute(query)
+            recipe = recipe.scalar_one_or_none()
+            if recipe and recipe.is_secret:
+                return None
+        
+        result = await self.session.execute(query)
+        recipe = result.scalar_one_or_none()
         return recipe
 
-    @cache_service.cache_response(ttl=600)  # кешируем на 10 минут, так как рецепты редко меняются
-    async def get_all_recipes(self) -> List[RecipeResponse]:
-        """Получение всех рецептов"""
-        result = await self.session.execute(
-            select(Recipe)
-            .where(Recipe.is_active == True)
-            .order_by(Recipe.rarity)
+    async def get_known_recipes(self, user_id: int) -> List[KnownRecipe]:
+        """Получение всех известных рецептов пользователя"""
+        known_recipes = await self.session.execute(
+            select(KnownRecipe)
+            .where(KnownRecipe.user_id == user_id)
+            .options(joinedload(KnownRecipe.recipe))
         )
-        return [RecipeResponse.model_validate(r) for r in result.scalars().all()]
+
+        krs = known_recipes.scalars().all()
+
+        return krs
 
     async def create_recipe(self, recipe_data: RecipeCreateRequest) -> Recipe:
         """Создание нового рецепта"""
@@ -418,7 +504,8 @@ class CraftingService(Service):
                 result_quantity=recipe_data.result_quantity,
                 success_chance=recipe_data.success_chance,
                 ingredient_hash=ingredients_hash,
-                is_active=True
+                is_active=recipe_data.is_active,
+                is_secret=recipe_data.is_secret
             )
             
             self.session.add(recipe)
@@ -433,6 +520,27 @@ class CraftingService(Service):
                 status_code=500,
                 detail=f"Error creating recipe: {str(e)}"
             )
+
+    async def update_recipe(
+        self,
+        recipe_id: int,
+        success_chance: Optional[float] = None,
+        is_active: Optional[bool] = None
+    ) -> Optional[Recipe]:
+        """Обновляет параметры рецепта"""
+        # Находим рецепт
+        recipe = await self.get_recipe(recipe_id)
+        if not recipe:
+            return None
+
+        if success_chance is not None:
+            recipe.success_chance = success_chance
+        if is_active is not None:
+            recipe.is_active = is_active
+
+        await self.session.commit()
+        await self.session.refresh(recipe)
+        return recipe
 
     async def _roll_craft_success(self, known_recipe: KnownRecipe) -> bool:
         """Проверка успешности крафта с учетом шанса"""
@@ -481,62 +589,46 @@ class CraftingService(Service):
 
         return known_recipe
 
-    async def get_known_recipes(self, user_id: int) -> List[KnownRecipeResponse]:
-        """Получение всех известных рецептов пользователя"""
-        result = await self.session.execute(
-            select(KnownRecipe)
-            .options(joinedload(KnownRecipe.recipe))
-            .where(KnownRecipe.user_id == user_id)
-        )
-        known_recipes = result.scalars().all()
-        return [
-            KnownRecipeResponse(
-                id=r.id,
-                recipe_id=r.recipe_id,
-                user_id=r.user_id,
-                current_success_chance=r.current_success_chance,
-                known_ingredients=[StackBase(**ing) for ing in json.loads(r.known_ingredients)] if r.known_ingredients else [], # Парсим JSON и создаём объекты StackBase
-                recipe=RecipeResponse.model_validate(r.recipe) if r.recipe else None,
+    async def _update_known_recipe(
+        self,
+        user_id: int,
+        recipe_id: int,
+        discovered_ingredients: List[Dict[str, Any]]
+    ) -> None:
+        """Обновляет известные ингредиенты рецепта для пользователя"""
+        known_recipe = await self.session.execute(
+            select(KnownRecipe).where(
+                KnownRecipe.user_id == user_id,
+                KnownRecipe.recipe_id == recipe_id
             )
-            for r in known_recipes
-        ]
+        )
+        known_recipe = known_recipe.scalar_one_or_none()
 
-    async def toggle_recipe_favorite(self, user_id: int, recipe_id: int) -> KnownRecipe:
-        """Добавление/удаление рецепта из избранного"""
-        known_recipe = await self._get_or_create_known_recipe(user_id, recipe_id)
-        known_recipe.is_favorite = not known_recipe.is_favorite
-        await self.session.commit()
-        return known_recipe
-
-    async def apply_booster(
-        self, user_id: int, recipe_id: int, booster_id: int, bonus: float,
-        duration_hours: Optional[int] = None
-    ):
-        """Применение усилителя к рецепту"""
-        known_recipe = await self._get_or_create_known_recipe(user_id, recipe_id)
-
-        # Проверяем, не применен ли уже такой бустер
-        for booster in known_recipe.applied_boosters:
-            if booster["booster_id"] == booster_id:
-                if booster.get("expires_at"):
-                    expires_at = datetime.fromisoformat(booster["expires_at"])
-                    if expires_at > datetime.now():
-                        raise HTTPException(400, "This booster is already active")
-                else:
-                    raise HTTPException(400, "This booster is already applied")
-
-        booster_data = {"booster_id": booster_id, "bonus": bonus}
-        if duration_hours:
-            booster_data["expires_at"] = (
-                datetime.now() + timedelta(hours=duration_hours)
-            ).isoformat()
-
-        if not known_recipe.applied_boosters:
-            known_recipe.applied_boosters = []
-        known_recipe.applied_boosters.append(booster_data)
+        if known_recipe:
+            # Обновляем список известных ингредиентов
+            current_ingredients = known_recipe.known_ingredients or []
+            new_ingredients = []
+            
+            # Добавляем только уникальные ингредиенты
+            seen_ingredients = {(i["item_id"], i["quantity"]) for i in current_ingredients}
+            for ingredient in discovered_ingredients:
+                key = (ingredient["item_id"], ingredient["quantity"])
+                if key not in seen_ingredients:
+                    new_ingredients.append(ingredient)
+                    seen_ingredients.add(key)
+            
+            known_recipe.known_ingredients = current_ingredients + new_ingredients
+        else:
+            # Создаем новую запись
+            known_recipe = KnownRecipe(
+                user_id=user_id,
+                recipe_id=recipe_id,
+                current_success_chance=75.0,  # Базовый шанс
+                known_ingredients=discovered_ingredients
+            )
+            self.session.add(known_recipe)
 
         await self.session.commit()
-        return known_recipe
 
     async def _ingredients_match(self, ingredients: List[StackBase]) -> List[Optional[Recipe]]:
         """
@@ -578,17 +670,92 @@ class CraftingService(Service):
 
         return available_recipes
 
-    async def _calculate_craft_chance(self, known_recipe: KnownRecipe) -> float:
-        """Рассчитывает шанс крафта"""
-        total_chance = known_recipe.current_success_chance
-        if known_recipe.applied_boosters:
-            for booster in known_recipe.applied_boosters:
+    async def toggle_recipe_favorite(self, user_id: int, recipe_id: int) -> KnownRecipe:
+        """Добавление/удаление рецепта из избранного"""
+        known_recipe = await self._get_or_create_known_recipe(user_id, recipe_id)
+        known_recipe.is_favorite = not known_recipe.is_favorite
+        await self.session.commit()
+        return known_recipe
+
+    async def apply_booster(
+        self, user_id: int, recipe_id: int, booster_id: int, bonus: float,
+        duration_hours: Optional[int] = None
+    ):
+        """Применение усилителя к рецепту"""
+        known_recipe = await self._get_or_create_known_recipe(user_id, recipe_id)
+
+        # Проверяем, не применен ли уже такой бустер
+        for booster in known_recipe.applied_boosters:
+            if booster["booster_id"] == booster_id:
                 if booster.get("expires_at"):
-                    # Проверяем, не истек ли срок действия бустера
                     expires_at = datetime.fromisoformat(booster["expires_at"])
                     if expires_at > datetime.now():
-                        total_chance += booster.get("bonus", 0)
+                        raise HTTPException(400, "This booster is already active")
                 else:
-                    total_chance += booster.get("bonus", 0)
+                    raise HTTPException(400, "This booster is already applied")
 
-        return min(total_chance, 99)
+        booster_data = {"booster_id": booster_id, "bonus": bonus}
+        if duration_hours:
+            booster_data["expires_at"] = (
+                datetime.now() + timedelta(hours=duration_hours)
+            ).isoformat()
+
+        if not known_recipe.applied_boosters:
+            known_recipe.applied_boosters = []
+        known_recipe.applied_boosters.append(booster_data)
+
+        await self.session.commit()
+        return known_recipe
+
+    async def share_recipe(self, user_id: int, recipe_id: int, target_user_ids: List[int]) -> bool:
+        """
+        Поделиться рецептом с другим игроком.
+        
+        Args:
+            user_id: ID пользователя, который делится рецептом
+            recipe_id: ID рецепта
+            target_user_id: ID пользователей, которым передается рецепт
+            
+        Returns:
+            bool: True если рецепт успешно передан, False если возникла ошибка
+            
+        Raises:
+            HTTPException: если рецепт не найден, является секретным или пользователи не в одном клане
+        """
+        try:
+
+            # Проверяем существование рецепта и что он известен пользователю
+            known_recipe = await self.session.execute(
+                select(KnownRecipe)
+                .where(
+                    and_(
+                        KnownRecipe.user_id == user_id,
+                        KnownRecipe.recipe_id == recipe_id
+                    )
+                )
+                .options(joinedload(KnownRecipe.recipe))
+            )
+            known_recipe = known_recipe.scalar_one_or_none()
+            
+            if not known_recipe:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Recipe not found or not known to user"
+                )
+                
+            # Проверяем, что рецепт не является секретным
+            if known_recipe.recipe.is_secret:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot share secret recipes"
+                )
+                
+            # TODO: Добавить проверку, что пользователи находятся в одном клане
+            shared_recipe = KnownRecipeResponse.model_validate(known_recipe)
+            return shared_recipe
+        except SQLAlchemyError:
+            await self.session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to share recipe"
+            )

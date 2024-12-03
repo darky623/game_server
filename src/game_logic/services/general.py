@@ -12,6 +12,7 @@ from src.game_logic.services.params_service import ParamsService
 from src.game_logic.services.player_progress_service import PlayerProgressService
 from src.game_logic.services.race_service import RaceService
 from src.game_logic.services.rune_service import RuneService
+from src.game_logic.services.energy_service import EnergyService
 
 
 class Services:
@@ -29,3 +30,4 @@ class Services:
         self.player_progress_service: PlayerProgressService = PlayerProgressService(self.__session)
         self.inventory_service: InventoryService = InventoryService(self.__session)
         self.crafting_service: CraftingService = CraftingService(self.__session)
+        self.energy_service: EnergyService = EnergyService(self.__session)

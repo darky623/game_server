@@ -47,12 +47,12 @@ class Item(Base):
     level = Column(Integer)  # Можно хранить в item_data
     icon = Column(String)
 
-    tier = Column(Integer)
+    tier = Column(Integer) # 0-5. предметы с тиром 0 - нельзя носить на герое
 
-    summand_params_id = Column(Integer, ForeignKey("summand_params.id"))
+    summand_params_id = Column(Integer, ForeignKey("summand_params.id"), nullable=True)
     summand_params = relationship("SummandParams", lazy="joined", cascade="all, delete")
 
-    multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"))
+    multiplier_params_id = Column(Integer, ForeignKey("multiplier_params.id"), nullable=True)
     multiplier_params = relationship(
         "MultiplierParams", lazy="joined", cascade="all, delete"
     )

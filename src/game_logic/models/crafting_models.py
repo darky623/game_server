@@ -16,6 +16,7 @@ class Recipe(Base):
     success_chance = Column(Float, default=75.0)  # Базовый шанс успешного крафта (75%)
     max_crafts = Column(Integer)  # Максимальное количество успешных крафтов
     is_active = Column(Boolean, default=True)
+    is_secret = Column(Boolean, default=False)  # Является ли рецепт секретным
     # Список ингредиентов и их количество для крафта
     # Формат: [{"item_id": int, "quantity": int}, ...]
     ingredients = Column(JSON)
@@ -29,7 +30,6 @@ class Recipe(Base):
     craft_attempts = relationship("CraftAttempt", back_populates="recipe")
 
     __table_args__ = (
-        Index('idx_recipes_active', 'is_active'),
         Index('idx_recipes_rarity', 'rarity'),
         Index('idx_recipes_ingredient_hash', 'ingredient_hash'),
     )

@@ -4,12 +4,14 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
 from config import game_settings
-from src.game_logic.energy.models import Energy
-from src.game_logic.energy.schema import EnergySchema
+
 import logging
+
+from src.game_logic.models.energy_models import Energy
+from src.game_logic.schemas.energy_schema import EnergySchema
+from src.game_logic.services.service import Service
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +34,13 @@ def error_handler(func):
     return wrapper
 
 
-class EnergyService:
-    def __init__(self, session_factory):
-        self.session_factory = session_factory
+class EnergyService(Service):
+    def __init__(self, session):
+        super().__init__(session)
         self.max_energy = game_settings.energy["energy_max"]
         self.time_add_one_energy = game_settings.time_add_one_energy.total_seconds()
 
-    @staticmethod
-    async def _create_energy(user_id: int, session):
+    async def _create_energy(self, user_id: int):
         """
         Создает энергию пользователя
         Args:
@@ -47,17 +48,16 @@ class EnergyService:
         """
         try:
             energy = Energy(user_id=user_id)
-            session.add(energy)
-            await session.commit()
+            self.session.add(energy)
+            await self.session.commit()
             return energy
         except Exception as e:
             logger.error(f"Error creating energy: {e}")
             return None
 
-    @staticmethod
-    async def _get_energy(user_id: int, session):
+    async def _get_energy(self, user_id: int):
         try:
-            result = await session.execute(
+            result = await self.session.execute(
                 select(Energy).where(Energy.user_id == user_id)
             )
             return result.scalars().first()
@@ -65,26 +65,25 @@ class EnergyService:
             logger.error(f"Error getting energy: {e}")
             return None
 
-    async def get_energy(self, user_id: int, session: Session) -> Energy | JSONResponse:
+    async def get_energy(self, user_id: int) -> Energy | JSONResponse:
         """
         Возвращает энергию пользователя, если ее нет - создаёт энергию
         Args:
             user_id (int): ID пользователя
-            session (Session): сессия
         Returns:
             EnergySchema: Энергия пользователя
         """
         try:
-            energy = await self._get_energy(user_id, session)
+            energy = await self._get_energy(user_id)
             if not energy:
-                energy = await self._create_energy(user_id, session)
+                energy = await self._create_energy(user_id)
             return energy
         except SQLAlchemyError as e:
             logger.error(f"Error getting energy: {e}")
             return JSONResponse(status_code=500, content={"message": str(e)})
 
     async def update_energy(
-        self, user_id: int, amount: int, overmax: bool = False
+            self, user_id: int, amount: int, overmax: bool = False
     ) -> EnergySchema | JSONResponse:
         """
         Обновляет энергию пользователя
@@ -94,46 +93,43 @@ class EnergyService:
         Args:
             user_id (int): ID пользователя
             amount (int): Изменение количества энергии (может быть отрицательным)
-            overmax (bool): Если надо добавить больше максимума энергии(Рекомендуется использовать
-            в случае любого *обязательного* повышения энергии, н-р, за просмотр рекламы можно получить 10ед энергии
-            если у пользователя 95ед энергии то он получит только 5 единиц если не указать явно overmax=True).
-            Т.Е. Если энергию надо повысить, но ее значение не должно превышать 100 единиц, overmax=False
+            overmax (bool): Если надо добавить больше максимума энергии
 
         Returns:
             EnergySchema | JSONResponse: Обновленная энергия, либо JSONResponse с сообщением об ошибке
         """
-        async with self.session_factory() as session:
-            try:
-                energy = await self.get_energy(user_id, session)
-                if isinstance(energy, JSONResponse):
-                    return energy
 
-                # Расчет потенциальной энергии
-                potential_energy, potential_energy_with_overmax = (
-                    await self._calculate_potential_energy(energy)
-                )
+        try:
+            energy = await self.get_energy(user_id)
+            if isinstance(energy, JSONResponse):
+                return energy
 
-                # Обновление энергии
-                energy = await self._process_energy_update(
-                    energy,
-                    amount,
-                    overmax,
-                    potential_energy,
-                    potential_energy_with_overmax,
-                )
-                # Обработка исключений
-                if isinstance(energy, JSONResponse):
-                    return energy
+            # Расчет потенциальной энергии
+            potential_energy, potential_energy_with_overmax = (
+                await self._calculate_potential_energy(energy)
+            )
 
-                # Проверяем, если энергия больше максимума, то переводим овермакс энергии в True
-                energy = await self._check_and_correct_overmax(energy)
-                energy.last_updated = datetime.now()
-                session.add(energy)
-                await session.commit()
-                return EnergySchema.from_orm(energy)
-            except SQLAlchemyError as e:
-                logger.error(f"Error updating energy: {e}")
-                return JSONResponse(status_code=500, content={"message": str(e)})
+            # Обновление энергии
+            energy = await self._process_energy_update(
+                energy,
+                amount,
+                overmax,
+                potential_energy,
+                potential_energy_with_overmax,
+            )
+            # Обработка исключений
+            if isinstance(energy, JSONResponse):
+                return energy
+
+            # Проверяем, если энергия больше максимума, то переводим овермакс энергии в True
+            energy = await self._check_and_correct_overmax(energy)
+            energy.last_updated = datetime.now()
+            self.session.add(energy)
+            await self.session.commit()
+            return EnergySchema.from_orm(energy)
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating energy: {e}")
+            return JSONResponse(status_code=500, content={"message": str(e)})
 
     async def _calculate_potential_energy(self, energy: Energy) -> tuple[int, int]:
         """Расчет потенциальной энергии
@@ -157,7 +153,7 @@ class EnergyService:
         # Потенциальное количество энергии которое могло бы накопиться если бы она тикала каждую ед. времени
         potential_energy = min(energy.amount + energy_gained, self.max_energy)
         # Потенциальное количество энергии если у поль-ля потенциально станет больше чем максимум энергии, после обновы
-        potential_energy_with_overmax = energy.amount + min(energy_gained, abs(energy.amount-self.max_energy))
+        potential_energy_with_overmax = energy.amount + min(energy_gained, abs(energy.amount - self.max_energy))
 
         return potential_energy, potential_energy_with_overmax
 
@@ -172,12 +168,12 @@ class EnergyService:
         return energy
 
     async def _process_energy_update(
-        self,
-        energy: Energy,
-        amount: int,
-        overmax: bool,
-        potential_energy: int,
-        potential_energy_with_overmax: int,
+            self,
+            energy: Energy,
+            amount: int,
+            overmax: bool,
+            potential_energy: int,
+            potential_energy_with_overmax: int,
     ) -> Energy | JSONResponse:
         """
         Обрабатывает логику обновления энергии в зависимости от переданных параметров.
@@ -202,7 +198,7 @@ class EnergyService:
             )
 
     async def _handle_overmax_energy(
-        self, energy: Energy, amount: int, potential_energy_with_overmax: int
+            self, energy: Energy, amount: int, potential_energy_with_overmax: int
     ) -> Energy | JSONResponse:
         """
         Обрабатывает случай, когда пользователь может иметь энергию больше максимума.
@@ -225,11 +221,11 @@ class EnergyService:
         return energy
 
     async def _handle_regular_energy(
-        self,
-        energy: EnergySchema,
-        amount: int,
-        potential_energy: int,
-        potential_energy_with_overmax: int,
+            self,
+            energy: EnergySchema,
+            amount: int,
+            potential_energy: int,
+            potential_energy_with_overmax: int,
     ) -> EnergySchema | JSONResponse:
         """
         Обрабатывает случай обычного обновления энергии.

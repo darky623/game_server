@@ -17,14 +17,15 @@ router = APIRouter(prefix="/items", tags=["items"])
 async def create_item(
     add_item: AddItemSchema, services: Services = Depends(get_services)
 ):
-    summand_params_model = SummandParams(**add_item.summand_params.model_dump())
-    multiplier_params_model = MultiplierParams(
+    if add_item.summand_params or add_item.multiplier_params: 
+        summand_params_model = SummandParams(**add_item.summand_params.model_dump())
+        multiplier_params_model = MultiplierParams(
         **add_item.multiplier_params.model_dump()
-    )
-    inserted_summand_params = await services.params_service.add(summand_params_model)
-    inserted_multiplier_params = await services.params_service.add(
-        multiplier_params_model
-    )
+        )
+        inserted_summand_params = await services.params_service.add(summand_params_model)
+        inserted_multiplier_params = await services.params_service.add(
+            multiplier_params_model
+        )
     try:
         item_model = Item(
             name=add_item.name,
