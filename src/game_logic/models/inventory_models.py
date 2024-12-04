@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, orm, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-
 from config.database import Base
 
 
@@ -38,7 +37,7 @@ class Item(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     is_stacked = Column(Boolean)
-    is_personal = Column(Boolean, default=True) # Персональный предмет нельзя передать другому игроку
+    is_personal = Column(Boolean, default=True)  # Персональный предмет нельзя передать другому игроку
 
     item_type = Column(String())  # Например, 'снаряжение', 'руны', 'расходники', 'квестовые предметы'
     item_data = Column(JSONB)  # Данные о предмете, например, для снаряжения - характеристики, для рун - силы и т.д.
@@ -46,8 +45,8 @@ class Item(Base):
     name = Column(String)
     level = Column(Integer)  # Можно хранить в item_data
     icon = Column(String)
-
-    tier = Column(Integer) # 0-5. предметы с тиром 0 - нельзя носить на герое
+    # На мой взгляд было бы правильно сделать атрибут по типу is_equipped?
+    tier = Column(Integer)  # 0-5. предметы с тиром 0 - нельзя носить на герое
 
     summand_params_id = Column(Integer, ForeignKey("summand_params.id"), nullable=True)
     summand_params = relationship("SummandParams", lazy="joined", cascade="all, delete")

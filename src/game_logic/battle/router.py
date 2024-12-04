@@ -11,6 +11,7 @@ from config.deps import get_services
 from src.game_logic.battle.battle import Battle
 from src.game_logic.battle.controllers import CharacterController
 from src.game_logic.battle.schemas import BattleSchema
+from src.game_logic.energy.energy_decorators import require_energy
 from src.game_logic.services.general import Services
 
 router = APIRouter(prefix='/battle', tags=['Battle'])
@@ -27,6 +28,7 @@ def time_decorator(func):
 
 
 @router.post('')
+@require_energy(energy_amount=10)  # Требуется 10 единиц энергии для начала сражения
 async def create_battle(battle_create: BattleSchema,
                         user: User = Depends(get_current_user),
                         services: Services = Depends(get_services)):

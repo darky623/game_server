@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Tuple, Any
 
 from fastapi import HTTPException
-from sqlalchemy import select, and_, Row, RowMapping
+from sqlalchemy import select, and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
@@ -15,11 +15,11 @@ from src.game_logic.models.inventory_models import Item
 from src.game_logic.schemas.crafting_schemas import (
     RecipeCreateRequest,
     KnownRecipeResponse,
-    RecipeResponse,
+
     CraftAttemptResponse,
     DiscoveredRecipeInfo
 )
-from src.game_logic.schemas.inventory_schemas import StackBase, StackResponse
+from src.game_logic.schemas.inventory_schemas import StackBase
 from src.game_logic.services.service import Service
 from src.game_logic.services.inventory_service import InventoryService
 
@@ -31,7 +31,8 @@ class CraftingService(Service):
         super().__init__(session)
         self.inventory_service = InventoryService(session)
 
-    def _create_ingredient_hash(self, ingredients: List[StackBase]) -> str:
+    @staticmethod
+    def _create_ingredient_hash(ingredients: List[StackBase]) -> str:
         """Создает хеш для списка ингредиентов"""
         sorted_ingredients = sorted(
             ingredients, key=lambda x: (x.item_id, x.quantity)
@@ -43,11 +44,11 @@ class CraftingService(Service):
         return hashlib.md5(ingredients_str.encode()).hexdigest()
 
     async def attempt_craft(
-        self,
-        user_id: int,
-        ingredients: List[StackBase],
-        applied_boosters: List[StackBase] | None = None,
-        craft_count: int = 1
+            self,
+            user_id: int,
+            ingredients: List[StackBase],
+            applied_boosters: List[StackBase] | None = None,
+            craft_count: int = 1
     ) -> CraftAttemptResponse:
         """
         Попытка крафта предметов. Игрок может отправить от 1 до 6 ингредиентов.
@@ -80,8 +81,7 @@ class CraftingService(Service):
             ingredients_hash = self._create_ingredient_hash(ingredients)
 
             discovered_recipes: List[DiscoveredRecipeInfo] = []
-            recipe = None
-            
+
             # Ищем подходящий активный рецепт по хэшу
             recipe = await self._find_matching_recipe(ingredients, ingredients_hash, user_id, discovered_recipes)
 
@@ -90,14 +90,15 @@ class CraftingService(Service):
                 await self._create_craft_attempt(
                     user_id, None, ingredients, applied_boosters
                 )
-                
+
                 if discovered_recipes:
                     return CraftAttemptResponse(
                         success=False,
                         discovered_recipes=discovered_recipes,
                         message="Recipe not found, but you discovered some new recipes!",
                         used_ingredients=[{"item_id": ing.item_id, "quantity": ing.quantity} for ing in ingredients],
-                        used_boosters=[{"item_id": b.item_id, "quantity": b.quantity} for b in (applied_boosters or [])],
+                        used_boosters=[{"item_id": b.item_id, "quantity": b.quantity} for b in
+                                       (applied_boosters or [])],
                         discovery_mode=True
                     )
                 return CraftAttemptResponse(
@@ -112,13 +113,11 @@ class CraftingService(Service):
             known_recipe = await self._get_or_create_known_recipe(
                 user_id, recipe.id
             )
-
-            # Применяем бустеры только к текущей попытке
             booster_bonus = 0
-            used_boosters = []
+            # Применяем бустеры только к текущей попытке
             if applied_boosters:
                 booster_bonus, used_boosters = await self._apply_boosters(
-                    user_id, recipe, applied_boosters
+                    user_id, applied_boosters
                 )
 
             # Удаляем ингредиенты из инвентаря
@@ -174,8 +173,8 @@ class CraftingService(Service):
             )
 
     async def _find_matching_recipe(
-        self, ingredients: List[StackBase], ingredients_hash: str, user_id: int,
-        discovered_recipes: List[DiscoveredRecipeInfo]
+            self, ingredients: List[StackBase], ingredients_hash: str, user_id: int,
+            discovered_recipes: List[DiscoveredRecipeInfo]
     ) -> Optional[Recipe]:
         """Поиск подходящего рецепта по ингредиентам и хэшу"""
         try:
@@ -215,7 +214,7 @@ class CraftingService(Service):
                 if matched_count / total_ingredients >= 0.5:
                     # Обновляем известные ингредиенты для этого рецепта
                     known_recipe = await self._update_known_ingredients(user_id, recipe, ingredients)
-                    
+
                     # Добавляем информацию об отгаданном рецепте
                     discovered_recipes.append(DiscoveredRecipeInfo(
                         recipe_id=recipe.id,
@@ -232,21 +231,21 @@ class CraftingService(Service):
             )
 
     async def _update_known_ingredients(
-        self,
-        user_id: int,
-        recipe: Recipe,
-        provided_ingredients: List[StackBase],
+            self,
+            user_id: int,
+            recipe: Recipe,
+            provided_ingredients: List[StackBase],
     ) -> KnownRecipe:
         """Обновляет известные ингредиенты в KnownRecipe"""
         known_recipe = await self._get_or_create_known_recipe(user_id, recipe.id)
-        
+
         # Получаем текущие известные ингредиенты
         current_known = known_recipe.known_ingredients.get("matched", []) if known_recipe.known_ingredients else []
         current_known_dict = {ing["item_id"]: ing for ing in current_known}
-        
+
         # Находим совпадающие ингредиенты в текущей попытке
         new_matches = self._get_matched_ingredients(recipe.ingredients, provided_ingredients)
-        
+
         # Обновляем информацию об известных ингредиентах
         for match in new_matches:
             item_id = match["item_id"]
@@ -271,14 +270,12 @@ class CraftingService(Service):
         await self.session.commit()
         return known_recipe
 
+    @staticmethod
     def _get_matched_ingredients(
-        self, recipe_ingredients: List[Dict], provided_ingredients: List[StackBase]
+            recipe_ingredients: List[Dict], provided_ingredients: List[StackBase]
     ) -> List[Dict]:
         """Находит совпадающие ингредиенты между рецептом и предоставленными ингредиентами"""
         matched = []
-        recipe_dict = {
-            ing["item_id"]: ing["quantity"] for ing in recipe_ingredients
-        }
         provided_dict = {
             ing.item_id: ing.quantity for ing in provided_ingredients
         }
@@ -303,8 +300,9 @@ class CraftingService(Service):
 
         return matched
 
+    @staticmethod
     def _ingredients_full_match(
-        self, recipe_ingredients: List[Dict], provided_ingredients: List[StackBase]
+            recipe_ingredients: List[Dict], provided_ingredients: List[StackBase]
     ) -> bool:
         """Проверка точного соответствия ингредиентов рецепту"""
         recipe_dict = {
@@ -317,21 +315,21 @@ class CraftingService(Service):
         # Проверяем наличие всех необходимых ингредиентов
         for item_id, required_qty in recipe_dict.items():
             if (
-                item_id not in provided_dict
-                or provided_dict[item_id] != required_qty  # Изменено с < на != для точного совпадения
+                    item_id not in provided_dict
+                    or provided_dict[item_id] != required_qty  # Изменено с < на != для точного совпадения
             ):
                 return False
 
         # Проверяем, что нет лишних ингредиентов
         return len(recipe_dict) == len(provided_dict)
 
+    @staticmethod
     async def _create_craft_attempt(
-        self,
-        user_id: int,
-        recipe: Optional[Recipe],
-        ingredients: List[StackBase],
-        applied_boosters: Optional[List[StackBase]] = None,
-        is_successful: bool = False,
+            user_id: int,
+            recipe: Optional[Recipe],
+            ingredients: List[StackBase],
+            applied_boosters: Optional[List[StackBase]] = None,
+            is_successful: bool = False,
     ) -> CraftAttempt:
         """Создает запись о попытке крафта"""
         used_ingredients = {
@@ -370,13 +368,12 @@ class CraftingService(Service):
         )
 
     async def _apply_boosters(
-        self,
-        user_id: int,
-        recipe: Recipe,
-        boosters: List[StackBase]
+            self,
+            user_id: int,
+            boosters: List[StackBase]
     ) -> Tuple[float, List[Dict]]:
         """
-        Применяет бустеры к текущей попытке крафта.
+        Подсчёт шанса крафта.
         Возвращает бонус к шансу крафта и список примененных бустеров.
         """
         if not await self.inventory_service.has_items(user_id, boosters):
@@ -417,9 +414,9 @@ class CraftingService(Service):
         return total_bonus, applied_boosters
 
     async def _calculate_craft_chance(
-        self, 
-        known_recipe: KnownRecipe,
-        booster_bonus: float = 0
+            self,
+            known_recipe: KnownRecipe,
+            booster_bonus: float = 0
     ) -> float:
         """Рассчитывает шанс крафта с учетом временных бустеров"""
         # Получаем базовый шанс из рецепта
@@ -427,7 +424,7 @@ class CraftingService(Service):
             select(Recipe).where(Recipe.id == known_recipe.recipe_id)
         )
         recipe = recipe.scalar_one()
-        
+
         # Добавляем бонус от временных бустеров
         total_chance = recipe.success_chance + booster_bonus
 
@@ -449,7 +446,7 @@ class CraftingService(Service):
     async def get_recipe(self, recipe_id: int, user_id: int = None) -> Optional[Recipe]:
         """Получение рецепта по ID"""
         query = select(Recipe).where(Recipe.id == recipe_id)
-        
+
         # Для секретных рецептов проверяем, знает ли пользователь хотя бы часть ингредиентов
         if user_id:
             known_recipe = await self.session.execute(
@@ -459,17 +456,17 @@ class CraftingService(Service):
                 )
             )
             known_recipe = known_recipe.scalar_one_or_none()
-            
+
             if known_recipe and known_recipe.known_ingredients:
                 result = await self.session.execute(query)
                 return result.scalar_one_or_none()
-            
+
             # Если рецепт секретный и пользователь не знает ингредиентов, возвращаем None
             recipe = await self.session.execute(query)
             recipe = recipe.scalar_one_or_none()
             if recipe and recipe.is_secret:
                 return None
-        
+
         result = await self.session.execute(query)
         recipe = result.scalar_one_or_none()
         return recipe
@@ -490,13 +487,13 @@ class CraftingService(Service):
         """Создание нового рецепта"""
         try:
             ingredients_hash = self._create_ingredient_hash(recipe_data.ingredients)
-            
+
             # Преобразуем StackBase в словари для сохранения в JSON
             ingredients_dict = [
                 {"item_id": ing.item_id, "quantity": ing.quantity}
                 for ing in recipe_data.ingredients
             ]
-            
+
             recipe = Recipe(
                 ingredients=ingredients_dict,
                 result_item_id=recipe_data.result_item_id,
@@ -508,13 +505,13 @@ class CraftingService(Service):
                 is_active=recipe_data.is_active,
                 is_secret=recipe_data.is_secret
             )
-            
+
             self.session.add(recipe)
             await self.session.commit()
             await self.session.refresh(recipe)
-            
+
             return recipe
-            
+
         except SQLAlchemyError as e:
             await self.session.rollback()
             raise HTTPException(
@@ -523,10 +520,10 @@ class CraftingService(Service):
             )
 
     async def update_recipe(
-        self,
-        recipe_id: int,
-        success_chance: Optional[float] = None,
-        is_active: Optional[bool] = None
+            self,
+            recipe_id: int,
+            success_chance: Optional[float] = None,
+            is_active: Optional[bool] = None
     ) -> Optional[Recipe]:
         """Обновляет параметры рецепта"""
         # Находим рецепт
@@ -562,7 +559,7 @@ class CraftingService(Service):
         return random.random() * 100 <= min(total_chance, 99)
 
     async def _get_or_create_known_recipe(
-        self, user_id: int, recipe_id: int
+            self, user_id: int, recipe_id: int
     ) -> KnownRecipe:
         """Получение или создание записи об известном рецепте"""
         result = await self.session.execute(
@@ -592,10 +589,10 @@ class CraftingService(Service):
         return known_recipe
 
     async def _update_known_recipe(
-        self,
-        user_id: int,
-        recipe_id: int,
-        discovered_ingredients: List[Dict[str, Any]]
+            self,
+            user_id: int,
+            recipe_id: int,
+            discovered_ingredients: List[Dict[str, Any]]
     ) -> None:
         """Обновляет известные ингредиенты рецепта для пользователя"""
         known_recipe = await self.session.execute(
@@ -610,7 +607,7 @@ class CraftingService(Service):
             # Обновляем список известных ингредиентов
             current_ingredients = known_recipe.known_ingredients or []
             new_ingredients = []
-            
+
             # Добавляем только уникальные ингредиенты
             seen_ingredients = {(i["item_id"], i["quantity"]) for i in current_ingredients}
             for ingredient in discovered_ingredients:
@@ -618,7 +615,7 @@ class CraftingService(Service):
                 if key not in seen_ingredients:
                     new_ingredients.append(ingredient)
                     seen_ingredients.add(key)
-            
+
             known_recipe.known_ingredients = current_ingredients + new_ingredients
         else:
             # Создаем новую запись
@@ -680,8 +677,8 @@ class CraftingService(Service):
         return known_recipe
 
     async def apply_booster(
-        self, user_id: int, recipe_id: int, booster_id: int, bonus: float,
-        duration_hours: Optional[int] = None
+            self, user_id: int, recipe_id: int, booster_id: int, bonus: float,
+            duration_hours: Optional[int] = None
     ):
         """Применение усилителя к рецепту"""
         known_recipe = await self._get_or_create_known_recipe(user_id, recipe_id)
@@ -699,7 +696,7 @@ class CraftingService(Service):
         booster_data = {"booster_id": booster_id, "bonus": bonus}
         if duration_hours:
             booster_data["expires_at"] = (
-                datetime.now() + timedelta(hours=duration_hours)
+                    datetime.now() + timedelta(hours=duration_hours)
             ).isoformat()
 
         if not known_recipe.applied_boosters:
@@ -738,20 +735,20 @@ class CraftingService(Service):
                 .options(joinedload(KnownRecipe.recipe))
             )
             known_recipe = known_recipe.scalar_one_or_none()
-            
+
             if not known_recipe:
                 raise HTTPException(
                     status_code=404,
                     detail="Recipe not found or not known to user"
                 )
-                
+
             # Проверяем, что рецепт не является секретным
             if known_recipe.recipe.is_secret:
                 raise HTTPException(
                     status_code=400,
                     detail="Cannot share secret recipes"
                 )
-                
+
             # TODO: Добавить проверку, что пользователи находятся в одном клане
             shared_recipe = KnownRecipeResponse.model_validate(known_recipe)
             return shared_recipe

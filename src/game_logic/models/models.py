@@ -197,6 +197,33 @@ class MultiplierParams(Base):
             )
         return NotImplemented
 
+    def __truediv__(self, other):
+        if isinstance(other, (int, float)):
+            return MultiplierParams(
+                damage=self.damage / other,
+                vitality=self.vitality / other,
+                speed=self.speed / other,
+                resistance=self.resistance / other,
+                evasion=self.evasion / other,
+            )
+        elif isinstance(other, MultiplierParams):
+            return MultiplierParams(
+                damage=self.damage / other.damage,
+                vitality=self.vitality / other.vitality,
+                speed=self.speed / other.speed,
+                resistance=self.resistance / other.resistance,
+                evasion=self.evasion / other.evasion,
+            )
+        elif isinstance(other, SummandParams):
+            return SummandParams(
+                damage=self.damage / other.damage,
+                vitality=self.vitality / other.vitality,
+                speed=self.speed / other.speed,
+                resistance=self.resistance / other.resistance,
+                evasion=self.evasion / other.evasion,
+            )
+        return NotImplemented
+
 
 class SummandParams(Base):
     __tablename__ = "summand_params"
@@ -232,6 +259,29 @@ class SummandParams(Base):
         elif isinstance(other, MultiplierParams):
             return other * self
         return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(other, SummandParams):
+            return SummandParams(
+                damage=self.damage - other.damage,
+                vitality=self.vitality - other.vitality,
+                speed=self.speed - other.speed,
+                resistance=self.resistance - other.resistance,
+                evasion=self.evasion - other.evasion,
+            )
+        return NotImplemented
+
+    def __truediv__(self, other):
+        if isinstance(other, (int, float)):
+            return SummandParams(
+                damage=self.damage / other,
+                vitality=self.vitality / other,
+                speed=self.speed / other,
+                resistance=self.resistance / other,
+                evasion=self.evasion / other,
+            )
+        return NotImplemented
+
 
 #
 # class Item(Base):
