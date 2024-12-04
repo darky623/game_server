@@ -37,7 +37,7 @@ async def get_active_recipes(
     response_model=RecipeResponse,
     dependencies=[Depends(get_current_user)]
 )
-async def get_recipe(
+async def get_recipe_by_id(
     recipe_id: int,
     current_user: User = Depends(get_current_user),
     services: Services = Depends(get_services),
@@ -156,7 +156,7 @@ async def share_recipe(
     request: ShareRecipeRequest,
     current_user: User = Depends(get_current_user),
     services: Services = Depends(get_services),
-) -> bool:
+) -> KnownRecipeResponse:
     """
     Поделиться рецептом с другим игроком.
     Рецепт должен быть известен текущему пользователю и не должен быть секретным.

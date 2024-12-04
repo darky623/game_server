@@ -53,7 +53,8 @@ def require_energy(energy_amount: int):
             # Проверяем результат обновления энергии
             if isinstance(energy_result, dict):
                 status_code = energy_result.get('status_code', 400)
-                message = energy_result.get('message') or energy_result.get('detail', f"Insufficient energy. Required: {energy_amount}")
+                message = energy_result.get('message') or energy_result.get('detail', f"Insufficient energy."
+                                                                                      f" Required: {energy_amount}")
                 raise HTTPException(status_code=status_code, detail=message)
 
             # Выполняем основную функцию

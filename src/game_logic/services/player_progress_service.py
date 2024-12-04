@@ -2,8 +2,6 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from auth.models import User
-
 from src.game_logic.models.biome_models import PlayerProgress
 from src.game_logic.schemas.player_progress_schema import PlayerProgressSchema
 from src.game_logic.services.service import Service
@@ -11,7 +9,7 @@ from src.game_logic.services.service import Service
 
 class PlayerProgressService(Service):
 
-    async def get_player_progress(self, user_id: User) -> PlayerProgressSchema:
+    async def get_player_progress(self, user_id: int) -> PlayerProgressSchema:
         try:
             result = await self.session.execute(
                 select(PlayerProgress).where(PlayerProgress.player_id == user_id)
@@ -20,7 +18,7 @@ class PlayerProgressService(Service):
             if player_progress is None:
                 raise HTTPException(404, "PlayerProgress not found")
 
-            return player_progress
+            return PlayerProgressSchema.from_orm(player_progress)
 
         except SQLAlchemyError as e:
             raise HTTPException(500, "Error getting player progress") from e

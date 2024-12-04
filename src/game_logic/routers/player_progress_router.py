@@ -11,10 +11,10 @@ router = APIRouter(prefix="/player_progress", tags=['player_progress'])
 
 
 @router.get("/{user_id}", response_model=PlayerProgressSchema, dependencies=[Depends(get_current_user)])
-async def get_player_progress(user_id: int,
+async def get_player_progress(user: User = Depends(get_current_user),
                               services: Services = Depends(get_services)
                               ) -> PlayerProgressSchema:
-    return await services.player_progress_service.get_player_progress(user_id)
+    return await services.player_progress_service.get_player_progress(user.id)
 
 
 @router.post("", response_model=PlayerProgressSchema, dependencies=[Depends(get_current_user)])

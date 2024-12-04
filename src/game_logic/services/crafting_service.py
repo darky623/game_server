@@ -2,7 +2,7 @@ import json
 import hashlib
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Tuple, Any, Sequence
+from typing import List, Optional, Dict, Tuple, Any
 
 from fastapi import HTTPException
 from sqlalchemy import select, and_, Row, RowMapping
@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 
 from src.game_logic.models.crafting_models import Recipe, KnownRecipe, CraftAttempt
 from cache.client import cache_service
-from src.game_logic.models.inventory_models import Item, Stack
+from src.game_logic.models.inventory_models import Item
 from src.game_logic.schemas.crafting_schemas import (
     RecipeCreateRequest,
     KnownRecipeResponse,
@@ -108,7 +108,7 @@ class CraftingService(Service):
                     discovery_mode=True
                 )
 
-            # Получаем информацию о известном рецепте
+            # Получаем информацию об известном рецепте
             known_recipe = await self._get_or_create_known_recipe(
                 user_id, recipe.id
             )
@@ -444,7 +444,7 @@ class CraftingService(Service):
                 )
             )
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def get_recipe(self, recipe_id: int, user_id: int = None) -> Optional[Recipe]:
         """Получение рецепта по ID"""
@@ -461,7 +461,8 @@ class CraftingService(Service):
             known_recipe = known_recipe.scalar_one_or_none()
             
             if known_recipe and known_recipe.known_ingredients:
-                return await self.session.execute(query)
+                result = await self.session.execute(query)
+                return result.scalar_one_or_none()
             
             # Если рецепт секретный и пользователь не знает ингредиентов, возвращаем None
             recipe = await self.session.execute(query)
@@ -483,7 +484,7 @@ class CraftingService(Service):
 
         krs = known_recipes.scalars().all()
 
-        return krs
+        return list(krs)
 
     async def create_recipe(self, recipe_data: RecipeCreateRequest) -> Recipe:
         """Создание нового рецепта"""
@@ -542,7 +543,8 @@ class CraftingService(Service):
         await self.session.refresh(recipe)
         return recipe
 
-    async def _roll_craft_success(self, known_recipe: KnownRecipe) -> bool:
+    @staticmethod
+    async def _roll_craft_success(known_recipe: KnownRecipe) -> bool:
         """Проверка успешности крафта с учетом шанса"""
         import random
 
@@ -707,7 +709,7 @@ class CraftingService(Service):
         await self.session.commit()
         return known_recipe
 
-    async def share_recipe(self, user_id: int, recipe_id: int, target_user_ids: List[int]) -> bool:
+    async def share_recipe(self, user_id: int, recipe_id: int, target_user_ids: List[int]) -> KnownRecipeResponse:
         """
         Поделиться рецептом с другим игроком.
         

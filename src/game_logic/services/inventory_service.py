@@ -6,13 +6,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from src.game_logic.models.inventory_models import Inventory, Item, Stack
-from src.game_logic.schemas.inventory_schemas import (
-    InventoryResponse,
-    StackBase,
-    StackCreate,
-)
+from src.game_logic.schemas.inventory_schemas import InventoryResponse, StackBase
 from src.game_logic.services.service import Service
-from cache.client import cache_service
+
 
 class InventoryService(Service):
     async def _create_inventory(self, user_id: int) -> Inventory:
@@ -46,12 +42,12 @@ class InventoryService(Service):
 
             if inventory is None:
                 raise HTTPException(status_code=404, detail="Inventory not found")
-            
+
             # Ensure all relationships are loaded
             await self.session.refresh(inventory, ["stacks"])
             for stack in inventory.stacks:
                 await self.session.refresh(stack, ["item"])
-            
+
             # Create response after ensuring all data is loaded
             return InventoryResponse.model_validate(inventory)
         except SQLAlchemyError as e:
@@ -89,7 +85,11 @@ class InventoryService(Service):
                 if item.is_stacked:
                     # Для стакающихся предметов
                     existing_stack = next(
-                        (stack for stack in inventory.stacks if stack.item_id == item.id),
+                        (
+                            stack
+                            for stack in inventory.stacks
+                            if stack.item_id == item.id
+                        ),
                         None,
                     )
 
@@ -118,9 +118,13 @@ class InventoryService(Service):
             return await self.get_inventory(user_id)
         except SQLAlchemyError as e:
             await self.session.rollback()
-            raise HTTPException(status_code=500, detail="Failed to add items to inventory")
+            raise HTTPException(
+                status_code=500, detail="Failed to add items to inventory"
+            )
 
-    async def remove_items(self, user_id: int, items_to_remove: List[StackBase]) -> InventoryResponse:
+    async def remove_items(
+        self, user_id: int, items_to_remove: List[StackBase]
+    ) -> InventoryResponse:
         """Удаление предметов из инвентаря"""
         if not items_to_remove:
             return await self.get_inventory(user_id)
@@ -136,23 +140,23 @@ class InventoryService(Service):
                     select(Item).where(Item.id == stack_data.item_id)
                 )
                 item = item_result.scalar_one_or_none()
-                
+
                 if not item:
                     raise HTTPException(
-                        status_code=404,
-                        detail=f"Item {stack_data.item_id} not found"
+                        status_code=404, detail=f"Item {stack_data.item_id} not found"
                     )
 
                 # Находим все стеки с нужным предметом
                 matching_stacks = [
-                    stack for stack in inventory.stacks 
+                    stack
+                    for stack in inventory.stacks
                     if stack.item_id == stack_data.item_id
                 ]
 
                 if not matching_stacks:
                     raise HTTPException(
                         status_code=404,
-                        detail=f"Item {stack_data.item_id} not found in inventory"
+                        detail=f"Item {stack_data.item_id} not found in inventory",
                     )
 
                 remaining_to_remove = stack_data.quantity
@@ -175,15 +179,15 @@ class InventoryService(Service):
                     if len(matching_stacks) < stack_data.quantity:
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Not enough items of type {stack_data.item_id}"
+                            detail=f"Not enough items of type {stack_data.item_id}",
                         )
-                    stacks_to_delete = matching_stacks[:stack_data.quantity]
+                    stacks_to_delete = matching_stacks[: stack_data.quantity]
                     remaining_to_remove = 0
 
                 if remaining_to_remove > 0:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Not enough items of type {stack_data.item_id}"
+                        detail=f"Not enough items of type {stack_data.item_id}",
                     )
 
                 # Удаляем пустые стеки
@@ -193,10 +197,12 @@ class InventoryService(Service):
 
             await self.session.commit()
             return await self.get_inventory(user_id)
-            
+
         except SQLAlchemyError as e:
             await self.session.rollback()
-            raise HTTPException(status_code=500, detail="Failed to remove items from inventory")
+            raise HTTPException(
+                status_code=500, detail="Failed to remove items from inventory"
+            )
 
     async def has_items(self, user_id: int, items_to_check: list[StackBase]) -> bool:
         """Проверка наличия предметов в инвентаре"""
@@ -213,13 +219,15 @@ class InventoryService(Service):
                     for stack in inventory.stacks
                     if stack.item_id == required_stack.item_id
                 )
-                
+
                 if total_quantity < required_stack.quantity:
                     return False
 
             return True
         except SQLAlchemyError:
-            raise HTTPException(status_code=500, detail="Error checking inventory items")
+            raise HTTPException(
+                status_code=500, detail="Error checking inventory items"
+            )
 
     async def get_item_quantity(self, user_id: int, item_id: int) -> int:
         """Получение количества определенного предмета в инвентаре"""
@@ -229,9 +237,7 @@ class InventoryService(Service):
                 return 0
 
             return sum(
-                stack.quantity
-                for stack in inventory.stacks
-                if stack.item_id == item_id
+                stack.quantity for stack in inventory.stacks if stack.item_id == item_id
             )
         except SQLAlchemyError:
             raise HTTPException(status_code=500, detail="Error getting item quantity")

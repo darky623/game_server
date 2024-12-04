@@ -59,6 +59,6 @@ class Item(Base):
 
     @orm.validates("tier")
     def validate_tier_number(self, key, value):
-        if not 0 <= value <= 5:
+        if not 0 <= value <= 6:
             raise ValueError(f"Invalid ability tier {value}")
         return value
