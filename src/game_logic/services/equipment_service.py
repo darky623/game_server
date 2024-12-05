@@ -3,6 +3,7 @@ from sqlalchemy import select, and_
 
 from src.game_logic.models import Character, SummandParams, MultiplierParams
 from src.game_logic.models.inventory_models import Item
+from src.game_logic.schemas.inventory_schemas import StackBase
 from src.game_logic.services.inventory_service import InventoryService
 from src.game_logic.services.service import Service
 
@@ -38,7 +39,7 @@ class EquipmentService(Service):
                 return {"success": False, "message": "Character or item not found"}
 
             # Проверка на наличие у пользователя данного итема
-            if not await self.inventory_service.has_items(user_id, [{"item_id": item.id, "quantity": 1}]):
+            if not await self.inventory_service.has_items(user_id, [StackBase(item_id=item_id, quantity=1)]):
                 return {"success": False, "message": "Not enough items in inventory"}
 
             if item.tier == 0:
@@ -52,17 +53,17 @@ class EquipmentService(Service):
 
             # Обновляем параметры персонажа
             if item.summand_params:
-                if not character.summand_params:
-                    character.summand_params = SummandParams()
+                # if not character.summand_params:
+                #     character.summand_params = SummandParams()
                 character.summand_params += item.summand_params
 
             if item.multiplier_params:
-                if not character.multiplier_params:
-                    character.multiplier_params = MultiplierParams()
+                # if not character.multiplier_params:
+                #     character.multiplier_params = MultiplierParams()
                 character.multiplier_params *= item.multiplier_params
 
             # Удаляем предмет из инвентаря
-            await self.inventory_service.remove_items(user_id, [{"item_id": item.id, "quantity": 1}])
+            await self.inventory_service.remove_items(user_id, [StackBase(item_id=item_id, quantity=1)])
 
             await self.session.commit()
             return {"success": True, "message": "Item equipped successfully"}
@@ -103,7 +104,7 @@ class EquipmentService(Service):
         character.items.remove(item)
         # Добавляем предмет в инвентарь
         await self.inventory_service.add_items_to_inventory(
-            user_id, [{"item_id": item.id, "quantity": 1}]
+            user_id, [StackBase(item_id=item_id, quantity=1)]
         )
 
         await self.session.commit()

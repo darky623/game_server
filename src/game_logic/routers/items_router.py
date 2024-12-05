@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -15,14 +15,16 @@ router = APIRouter(prefix="/items", tags=["items"])
 
 @router.post("", response_model=ItemSchema, dependencies=[Depends(get_current_user)])
 async def create_item(
-        add_item: AddItemSchema, services: Services = Depends(get_services)
+    add_item: AddItemSchema, services: Services = Depends(get_services)
 ):
     if add_item.summand_params or add_item.multiplier_params:
         summand_params_model = SummandParams(**add_item.summand_params.model_dump())
         multiplier_params_model = MultiplierParams(
             **add_item.multiplier_params.model_dump()
         )
-        inserted_summand_params = await services.params_service.add(summand_params_model)
+        inserted_summand_params = await services.params_service.add(
+            summand_params_model
+        )
         inserted_multiplier_params = await services.params_service.add(
             multiplier_params_model
         )
@@ -48,7 +50,7 @@ async def create_item(
     "", response_model=list[ItemSchema], dependencies=[Depends(get_current_user)]
 )
 async def get_items(
-        item_ids: Optional[list[int]] = None, services: Services = Depends(get_services)
+    item_ids: Optional[List[int]] = None, services: Services = Depends(get_services)
 ):
     if not item_ids:
         return await services.item_service.get_all()
@@ -71,7 +73,7 @@ async def delete_item(item_id: int, services=Depends(get_services)):
 
 @router.patch("/", response_model=ItemSchema, dependencies=[Depends(get_current_user)])
 async def update_item(
-        item_id: int, update_item: AddItemSchema, services: Services = Depends(get_services)
+    item_id: int, update_item: AddItemSchema, services: Services = Depends(get_services)
 ):
     summand_params_model = SummandParams(**update_item.summand_params.model_dump())
     multiplier_params_model = MultiplierParams(
@@ -98,23 +100,23 @@ async def update_item(
 
 @router.post("/equip")
 async def equip_item(
-        character_id: int,
-        item_id: int,
-        user: User = Depends(get_current_user),
-        services: Services = Depends(get_services)
+    character_id: int,
+    item_id: int,
+    user: User = Depends(get_current_user),
+    services: Services = Depends(get_services),
 ) -> dict:
-    return await services.equipment_service.equip_item(character_id=character_id,
-                                                       user_id=user.id,
-                                                       item_id=item_id)
+    return await services.equipment_service.equip_item(
+        character_id=character_id, user_id=user.id, item_id=item_id
+    )
 
 
 @router.post("/unequip")
 async def unequip_item(
-        character_id: int,
-        item_id: int,
-        user: User = Depends(get_current_user),
-        services: Services = Depends(get_services)
+    character_id: int,
+    item_id: int,
+    user: User = Depends(get_current_user),
+    services: Services = Depends(get_services),
 ) -> dict:
-    return await services.equipment_service.unequip_item(character_id=character_id,
-                                                         user_id=user.id,
-                                                         item_id=item_id)
+    return await services.equipment_service.unequip_item(
+        character_id=character_id, user_id=user.id, item_id=item_id
+    )
