@@ -53,14 +53,22 @@ class EquipmentService(Service):
 
             # Обновляем параметры персонажа
             if item.summand_params:
-                # if not character.summand_params:
-                #     character.summand_params = SummandParams()
-                character.summand_params += item.summand_params
+                # Обновляем существующие параметры вместо создания новых
+                summand_params = character.summand_params
+                summand_params.damage += item.summand_params.damage
+                summand_params.vitality += item.summand_params.vitality
+                summand_params.speed += item.summand_params.speed
+                summand_params.resistance += item.summand_params.resistance
+                summand_params.evasion += item.summand_params.evasion
 
             if item.multiplier_params:
-                # if not character.multiplier_params:
-                #     character.multiplier_params = MultiplierParams()
-                character.multiplier_params *= item.multiplier_params
+                # Обновляем существующие параметры вместо создания новых
+                multiplier_params = character.multiplier_params
+                multiplier_params.damage *= item.multiplier_params.damage
+                multiplier_params.vitality *= item.multiplier_params.vitality
+                multiplier_params.speed *= item.multiplier_params.speed
+                multiplier_params.resistance *= item.multiplier_params.resistance
+                multiplier_params.evasion *= item.multiplier_params.evasion
 
             # Удаляем предмет из инвентаря
             await self.inventory_service.remove_items(user_id, [StackBase(item_id=item_id, quantity=1)])
@@ -73,43 +81,54 @@ class EquipmentService(Service):
             return {"success": False, "message": "An error occurred"}
 
     async def unequip_item(self, character_id: int, user_id: int, item_id: int) -> dict:
-        # try:
-
-        character = await self.session.execute(
-            select(Character)
-            .where(
-                and_(Character.id == character_id,
-                     Character.user_id == user_id)
+        try:
+            character = await self.session.execute(
+                select(Character)
+                .where(
+                    and_(Character.id == character_id,
+                         Character.user_id == user_id)
+                )
             )
-        )
-        character = character.scalars().first()
-        item = await self.session.execute(
-            select(Item)
-            .where(Item.id == item_id))
+            character = character.scalars().first()
+            item = await self.session.execute(
+                select(Item)
+                .where(Item.id == item_id))
 
-        item = item.scalars().first()
+            item = item.scalars().first()
 
-        if not character or not item:
-            return {"success": False, "message": "Character or item not found"}
-        # Проверка на наличие у героя данного итема
-        if item not in character.items:
-            return {"success": False, "message": "Item is not equipped"}
+            if not character or not item:
+                return {"success": False, "message": "Character or item not found"}
+            # Проверка на наличие у героя данного итема
+            if item not in character.items:
+                return {"success": False, "message": "Item is not equipped"}
 
-        # Удаляем предмет из персонажа
-        if item.summand_params:
-            character.summand_params -= item.summand_params
-        if item.multiplier_params:
-            character.multiplier_params /= item.multiplier_params
+            # Удаляем предмет из персонажа
+            if item.summand_params:
+                # Обновляем существующие параметры вместо создания новых
+                summand_params = character.summand_params
+                summand_params.damage -= item.summand_params.damage
+                summand_params.vitality -= item.summand_params.vitality
+                summand_params.speed -= item.summand_params.speed
+                summand_params.resistance -= item.summand_params.resistance
+                summand_params.evasion -= item.summand_params.evasion
 
-        character.items.remove(item)
-        # Добавляем предмет в инвентарь
-        await self.inventory_service.add_items_to_inventory(
-            user_id, [StackBase(item_id=item_id, quantity=1)]
-        )
+            if item.multiplier_params:
+                # Обновляем существующие параметры вместо создания новых
+                multiplier_params = character.multiplier_params
+                multiplier_params.damage /= item.multiplier_params.damage
+                multiplier_params.vitality /= item.multiplier_params.vitality
+                multiplier_params.speed /= item.multiplier_params.speed
+                multiplier_params.resistance /= item.multiplier_params.resistance
+                multiplier_params.evasion /= item.multiplier_params.evasion
 
-        await self.session.commit()
-        return {"success": True, "message": "Item unequipped successfully"}
-        # except Exception as e:
-        #     await self.session.rollback()
-        #     print(f"Error occurred while unequipping item: {e}")
-        #     return {"success": False, "message": "An error occurred"}
+            character.items.remove(item)
+            # Добавляем предмет в инвентарь
+            await self.inventory_service.add_items_to_inventory(
+                user_id, [StackBase(item_id=item_id, quantity=1)]
+            )
+
+            await self.session.commit()
+            return {"success": True, "message": "Item unequipped successfully"}
+        except Exception as e:
+            await self.session.rollback()
+            return {"success": False, "message": f"Error occurred while unequipping item: {e}"}
