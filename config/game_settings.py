@@ -1,18 +1,4 @@
-import os
-
-PG_URL = os.getenv("PG_URL")
-PG_USERNAME = os.getenv("POSTGRES_USER")
-PG_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DB_NAME = os.getenv("POSTGRES_DB")
-
-db_url = f"postgresql+asyncpg://{PG_USERNAME}:{PG_PASSWORD}@{PG_URL}/{DB_NAME}"
-
-auth_server = os.getenv("AUTH_SERVER")
-
-secret_key = os.environ.get("SECRET_KEY")
-
-dt_format = "%d/%m/%Y %H:%M:%S"
-token_lifetime = 3600
+from datetime import timedelta
 
 permissions_for_clan = {
     "Head": [
@@ -46,3 +32,20 @@ permissions_for_clan = {
 }
 
 max_of_clan_members_from_rang = {1: 25, 2: 30, 3: 35, 4: 40}
+
+energy = {
+    "energy_min": 0,
+    "energy_max": 100
+}
+energy_per_battle = {1: 10}
+time_add_one_energy = timedelta(seconds=5)
+energy_per_time = {time_add_one_energy: 1}
+
+max_tier = 5
+tier_power_mapping = {
+    1: 10,
+    2: 250,
+    3: 500,
+    4: 750,
+    5: 1000,
+}
