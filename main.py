@@ -7,6 +7,7 @@ from src.friends.router import router as friends_router
 from src.game_logic.router import router as game_logic_router
 from src.clan.routers.crud_router import router as clan_router
 from src.clan.routers.subscribe_router import router as subscribe_clan_router
+from auth.summary import router as summary_router
 
 
 app = FastAPI()
@@ -18,6 +19,7 @@ app.include_router(friends_router)
 app.include_router(game_logic_router)
 app.include_router(clan_router)
 app.include_router(subscribe_clan_router)
+app.include_router(summary_router)
 
 
 app.add_middleware(
