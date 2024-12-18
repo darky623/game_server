@@ -3,8 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from chat.schemas import ChatSchema
-from game_logic.schemas.character_schema import CharacterSchema
+from src.chat.schemas import ChatSchema
+from src.game_logic.schemas.character_schema import CharacterSchema
 
 
 class UserSchema(BaseModel):
